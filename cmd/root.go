@@ -33,6 +33,7 @@ import (
 )
 
 var cfgFile string
+var serieNumber string
 
 const baseurl = "https://ws-tcg.com/cardlist/search"
 
@@ -78,7 +79,11 @@ to quickly create a Cobra application.`,
 			log.Fatal(err)
 		}
 		client := &http.Client{Jar: jar}
-		resp, err := client.PostForm(baseurl, url.Values{"cmd": {"search"}, "expansion": {"255"}, "show_page_count": {"100"}})
+		values := url.Values{"cmd": {"search"}, "show_page_count": {"100"}}
+		if serieNumber != "" {
+			values.Add("expansion", serieNumber)
+		}
+		resp, err := client.PostForm(URL, values)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -143,11 +148,7 @@ func init() {
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.wsoffcli.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.PersistentFlags().StringVar(&serieNumber, "serie", "", "serie number")
 }
 
 // initConfig reads in config file and ENV variables if set.
