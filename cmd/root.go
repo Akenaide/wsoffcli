@@ -16,13 +16,15 @@ package cmd
 
 import (
 	// "bytes"
+	"encoding/json"
 	"fmt"
-	"golang.org/x/net/publicsuffix"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
 	"os"
+
+	"golang.org/x/net/publicsuffix"
 
 	"github.com/PuerkitoBio/goquery"
 	homedir "github.com/mitchellh/go-homedir"
@@ -32,7 +34,31 @@ import (
 
 var cfgFile string
 
-const URL = "https://ws-tcg.com/cardlist/search"
+const baseurl = "https://ws-tcg.com/cardlist/search"
+
+// Card info to export
+type Card struct {
+	Set               string   `json:"set"`
+	SetName           string   `json:"setName"`
+	Side              string   `json:"side"`
+	Release           string   `json:"release"`
+	ID                string   `json:"id"`
+	Name              string   `json:"name"`
+	JpName            string   `json:"jpName"`
+	CardType          string   `json:"cardType"`
+	Color             string   `json:"color"`
+	Level             string   `json:"level"`
+	Cost              string   `json:"cost"`
+	Power             string   `json:"power"`
+	Soul              string   `json:"soul"`
+	Rarity            string   `json:"rarity"`
+	BreakDeckbuilding bool     `json:"breakDeckbuilding"`
+	ENEquivalent      bool     `json:"EN_Equivalent"`
+	FlavourText       string   `json:"flavourText"`
+	Trigger           []string `json:"trigger"`
+	Ability           []string `json:"ability"`
+	SpecialAttrib     []string `json:"specialAttrib"`
+}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -52,7 +78,7 @@ to quickly create a Cobra application.`,
 			log.Fatal(err)
 		}
 		client := &http.Client{Jar: jar}
-		resp, err := client.PostForm(URL, url.Values{"cmd": {"search"}, "show_page_count": {"100"}})
+		resp, err := client.PostForm(baseurl, url.Values{"cmd": {"search"}, "expansion": {"255"}, "show_page_count": {"100"}})
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -60,38 +86,44 @@ to quickly create a Cobra application.`,
 		if err != nil {
 			log.Fatal(err)
 		}
-		doc.Find(".search-result-table").Each(func(i int, s *goquery.Selection) {
+		doc.Find(".search-result-table tr").Each(func(i int, s *goquery.Selection) {
+			fmt.Println("--")
+			card := ExtractData(s)
 			html, err := s.Html()
 			if err != nil {
 				log.Fatal(err)
 			}
 			fmt.Println(html)
+			fmt.Println()
+			res, _ := json.Marshal(card)
+			fmt.Println(string(res))
+			fmt.Println("--")
 		})
 
-		for _, cookie := range resp.Cookies() {
-			fmt.Println("Found a cookie named:", cookie.Name)
-		}
-		resp.Body.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-		resp2, err := client.Get(URL + "?page=2")
-		defer resp2.Body.Close()
-		doc2, err := goquery.NewDocumentFromReader(resp2.Body)
-		if err != nil {
-			log.Fatal(err)
-		}
-		doc2.Find(".search-result-table").Each(func(i int, s *goquery.Selection) {
-			html, err := s.Html()
-			if err != nil {
-				log.Fatal(err)
-			}
-			fmt.Println(html)
-		})
+		// for _, cookie := range resp.Cookies() {
+		// 	fmt.Println("Found a cookie named:", cookie.Name)
+		// }
+		// resp.Body.Close()
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+		// resp2, err := client.Get(baseurl + "?page=2")
+		// defer resp2.Body.Close()
+		// doc2, err := goquery.NewDocumentFromReader(resp2.Body)
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+		// doc2.Find(".search-result-table").Each(func(i int, s *goquery.Selection) {
+		// 	html, err := s.Html()
+		// 	if err != nil {
+		// 		log.Fatal(err)
+		// 	}
+		// 	fmt.Println(html)
+		// })
 
-		for _, cookie := range resp2.Cookies() {
-			fmt.Println("Found a cookie named:", cookie.Name)
-		}
+		// for _, cookie := range resp2.Cookies() {
+		// 	fmt.Println("Found a cookie named:", cookie.Name)
+		// }
 
 	},
 }
