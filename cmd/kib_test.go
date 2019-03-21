@@ -20,7 +20,7 @@ func TestExtractData(t *testing.T) {
 	<span class="unit">レベル：2</span><br/>
 	<span class="unit">色：<img src="https://s3-ap-northeast-1.amazonaws.com/static.ws-tcg.com/wordpress/wp-content/cardimages/_partimages/green.gif"/></span>
 	<span class="unit">パワー：6000</span>
-	<span class="unit">ソウル：<img src="https://s3-ap-northeast-1.amazonaws.com/static.ws-tcg.com/wordpress/wp-content/cardimages/_partimages/soul.gif"/></span>
+	<span class="unit">ソウル：<img src="https://s3-ap-northeast-1.amazonaws.com/static.ws-tcg.com/wordpress/wp-content/cardimages/_partimages/soul.gif"/><img src="https://s3-ap-northeast-1.amazonaws.com/static.ws-tcg.com/wordpress/wp-content/cardimages/_partimages/soul.gif"/></span>
 	<span class="unit">コスト：1</span><br/>
 	<span class="unit">レアリティ：SPMa</span>
 	<span class="unit">トリガー：<img src="https://s3-ap-northeast-1.amazonaws.com/static.ws-tcg.com/wordpress/wp-content/cardimages/_partimages/soul.gif"/></span>
@@ -39,8 +39,41 @@ func TestExtractData(t *testing.T) {
 	}
 
 	card := ExtractData(doc.Clone())
-	if (card.Set != "BD") {
+	if card.JpName != "“私達、参上っ！”上原ひまり" {
+		t.Errorf("got %v: expected “私達、参上っ！”上原ひまり", card.JpName)
+	}
+	if card.Set != "BD" {
 		t.Errorf("got %v: expected BD", card.Set)
+	}
+	if card.SetName != "BD" {
+		t.Errorf("got %v: expected BD", card.SetName)
+	}
+	if card.Side != "W" {
+		t.Errorf("got %v: expected W", card.Side)
+	}
+	if card.Release != "63" {
+		t.Errorf("got %v: expected 63", card.Release)
+	}
+	if card.ID != "036SPMa" {
+		t.Errorf("got %v: expected 036SPMa", card.ID)
+	}
+	if card.Level != "2" {
+		t.Errorf("got %v: expected 2", card.Level)
+	}
+	if card.Color != "green" {
+		t.Errorf("got %v: expected green", card.Color)
+	}
+	if card.Power != "6000" {
+		t.Errorf("got %v: expected 6000", card.Power)
+	}
+	if card.Soul != "2" {
+		t.Errorf("got %v: expected 2", card.Soul)
+	}
+	if card.Cost != "1" {
+		t.Errorf("got %v: expected 1", card.Cost)
+	}
+	if card.Rarity != "SPMa" {
+		t.Errorf("got %v: expected SPMa", card.Rarity)
 	}
 	t.Errorf("lyay")
 }

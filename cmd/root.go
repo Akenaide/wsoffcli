@@ -83,7 +83,7 @@ to quickly create a Cobra application.`,
 		if serieNumber != "" {
 			values.Add("expansion", serieNumber)
 		}
-		resp, err := client.PostForm(URL, values)
+		resp, err := client.PostForm(baseurl, values)
 		if err != nil {
 			log.Fatal(err)
 		}

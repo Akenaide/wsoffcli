@@ -24,7 +24,7 @@ func ExtractData(s *goquery.Selection) Card {
 			return strings.Split(colorName, ".")[0]
 		}
 		if s.Text() == "ソウル：" {
-			return strconv.Itoa(s.Length())
+			return strconv.Itoa(s.Children().Length())
 		}
 		return s.Text()
 	})
@@ -40,6 +40,9 @@ func ExtractData(s *goquery.Selection) Card {
 		Color:   infos[3],
 		Power:   strings.Split(infos[4], "：")[1],
 		Soul:    infos[5],
+		Cost:    strings.Split(infos[6], "：")[1],
+		Rarity:  strings.Split(infos[7], "：")[1],
+		Rarity:  strings.Split(infos[7], "：")[1],
 	}
 	fmt.Println(infos)
 	return card
