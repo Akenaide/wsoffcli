@@ -15,7 +15,6 @@
 package cmd
 
 import (
-	// "bytes"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -79,40 +78,50 @@ to quickly create a Cobra application.`,
 		if err != nil {
 			log.Fatal(err)
 		}
+		page := 1
 		client := &http.Client{Jar: jar}
-		values := url.Values{"cmd": {"search"}, "show_page_count": {"100"}}
+		values := url.Values{
+			"cmd":             {"search"},
+			"show_page_count": {"100"},
+		}
 		if serieNumber != "" {
 			values.Add("expansion", serieNumber)
 		}
-		resp, err := client.PostForm(baseurl, values)
-		if err != nil {
-			log.Fatal(err)
-		}
-		doc, err := goquery.NewDocumentFromReader(resp.Body)
-		if err != nil {
-			log.Fatal(err)
-		}
-		doc.Find(".search-result-table tr").Each(func(i int, s *goquery.Selection) {
-			var buffer bytes.Buffer
-			fmt.Println("--")
-			card := ExtractData(s)
-			// html, err := s.Html()
+		for {
+			resp, err := client.PostForm(fmt.Sprintf("%v?page=%d", baseurl, page), values)
 			if err != nil {
 				log.Fatal(err)
 			}
-			res, errMarshal := json.Marshal(card)
-			if errMarshal != nil {
-				log.Println(errMarshal)
+			if resp.StatusCode == 404 {
+				break
 			}
-			fmt.Println(string(res))
-			out, err := os.Create(fmt.Sprintf("%v.json", card.ID))
+			log.Println("Fetch page : ", page, "with params : ", values)
+			doc, err := goquery.NewDocumentFromReader(resp.Body)
 			if err != nil {
-				log.Println(err.Error())
+				log.Fatal(err)
 			}
-			defer out.Close()
-			json.Indent(&buffer, res, "", "\t")
-			buffer.WriteTo(out)
-		})
+			doc.Find(".search-result-table tr").Each(func(i int, s *goquery.Selection) {
+				var buffer bytes.Buffer
+				card := ExtractData(s)
+				if err != nil {
+					log.Fatal(err)
+				}
+				res, errMarshal := json.Marshal(card)
+				if errMarshal != nil {
+					log.Println(errMarshal)
+				}
+				// fmt.Println(string(res))
+				out, err := os.Create(fmt.Sprintf("%v.json", card.ID))
+				if err != nil {
+					log.Println(err.Error())
+				}
+				defer out.Close()
+				json.Indent(&buffer, res, "", "\t")
+				buffer.WriteTo(out)
+			})
+			page = page + 1
+
+		}
 
 		// for _, cookie := range resp.Cookies() {
 		// 	fmt.Println("Found a cookie named:", cookie.Name)
