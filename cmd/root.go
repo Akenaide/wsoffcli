@@ -16,6 +16,7 @@ package cmd
 
 import (
 	// "bytes"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -92,17 +93,25 @@ to quickly create a Cobra application.`,
 			log.Fatal(err)
 		}
 		doc.Find(".search-result-table tr").Each(func(i int, s *goquery.Selection) {
+			var buffer bytes.Buffer
 			fmt.Println("--")
 			card := ExtractData(s)
-			html, err := s.Html()
+			// html, err := s.Html()
 			if err != nil {
 				log.Fatal(err)
 			}
-			fmt.Println(html)
-			fmt.Println()
-			res, _ := json.Marshal(card)
+			res, errMarshal := json.Marshal(card)
+			if errMarshal != nil {
+				log.Println(errMarshal)
+			}
 			fmt.Println(string(res))
-			fmt.Println("--")
+			out, err := os.Create(fmt.Sprintf("%v.json", card.ID))
+			if err != nil {
+				log.Println(err.Error())
+			}
+			defer out.Close()
+			json.Indent(&buffer, res, "", "\t")
+			buffer.WriteTo(out)
 		})
 
 		// for _, cookie := range resp.Cookies() {
