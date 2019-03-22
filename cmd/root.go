@@ -111,7 +111,7 @@ to quickly create a Cobra application.`,
 					log.Println(errMarshal)
 				}
 				// fmt.Println(string(res))
-				out, err := os.Create(fmt.Sprintf("%v.json", card.ID))
+				out, err := os.Create(fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID))
 				if err != nil {
 					log.Println(err.Error())
 				}

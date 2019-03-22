@@ -73,9 +73,6 @@ func TestExtractData(t *testing.T) {
 	if card.Set != "BD" {
 		t.Errorf("got %v: expected BD", card.Set)
 	}
-	if card.SetName != "BD" {
-		t.Errorf("got %v: expected BD", card.SetName)
-	}
 	if card.Side != "W" {
 		t.Errorf("got %v: expected W", card.Side)
 	}
@@ -88,8 +85,8 @@ func TestExtractData(t *testing.T) {
 	if card.Level != "2" {
 		t.Errorf("got %v: expected 2", card.Level)
 	}
-	if card.Color != "green" {
-		t.Errorf("got %v: expected green", card.Color)
+	if card.Color != "GREEN" {
+		t.Errorf("got %v: expected GREEN", card.Color)
 	}
 	if card.Power != "6000" {
 		t.Errorf("got %v: expected 6000", card.Power)
@@ -100,8 +97,8 @@ func TestExtractData(t *testing.T) {
 	if card.Cost != "1" {
 		t.Errorf("got %v: expected 1", card.Cost)
 	}
-	if card.CardType != "Character" {
-		t.Errorf("got %v: expected Character", card.CardType)
+	if card.CardType != "CH" {
+		t.Errorf("got %v: expected CH", card.CardType)
 	}
 	if card.Rarity != "SPMa" {
 		t.Errorf("got %v: expected SPMa", card.Rarity)
@@ -151,8 +148,8 @@ func TestExtractDataEvent(t *testing.T) {
 		t.Errorf("got %v: expected %v", card.Trigger, expectedTrigger)
 	}
 
-	if card.CardType != "Event" {
-		t.Errorf("got %v: expected Event", card.CardType)
+	if card.CardType != "EV" {
+		t.Errorf("got %v: expected EV", card.CardType)
 	}
 }
 
@@ -187,7 +184,7 @@ func TestExtractDataCX(t *testing.T) {
 
 	card := ExtractData(doc.Clone())
 
-	if card.CardType != "Climax" {
-		t.Errorf("got %v: expected Climax", card.CardType)
+	if card.CardType != "CX" {
+		t.Errorf("got %v: expected CX", card.CardType)
 	}
 }

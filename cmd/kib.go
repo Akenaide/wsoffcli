@@ -16,22 +16,23 @@ func ExtractData(mainHtml *goquery.Selection) Card {
 	side := strings.Split(complex, "/")[1][0]
 	setInfo := strings.Split(strings.Split(complex, "/")[1][1:], "-")
 	var ability, _ = mainHtml.Find("span").Last().Html()
+	setName := strings.TrimSpace(strings.Split(mainHtml.Find("h4").Text(), ") -")[1])
 
 	infos := mainHtml.Find(".unit").Map(func(i int, s *goquery.Selection) string {
 		if s.Text() == "色：" {
 			_, colorName := path.Split(s.Children().AttrOr("src", "yay"))
-			return strings.Split(colorName, ".")[0]
+			return strings.ToUpper(strings.Split(colorName, ".")[0])
 		}
 		if strings.HasPrefix(s.Text(), "種類：") {
 			var cType = strings.TrimSpace(strings.Split(s.Text(), "種類：")[1])
 
 			switch cType {
 			case "イベント":
-				return "Event"
+				return "EV"
 			case "キャラ":
-				return "Character"
+				return "CH"
 			case "クライマックス":
-				return "Climax"
+				return "CX"
 			}
 		}
 		if s.Text() == "ソウル：" {
@@ -61,7 +62,7 @@ func ExtractData(mainHtml *goquery.Selection) Card {
 	card := Card{
 		JpName:        strings.TrimSpace(mainHtml.Find("h4 span").First().Text()),
 		Set:           set,
-		SetName:       set,
+		SetName:       setName,
 		Side:          string(side),
 		Release:       setInfo[0],
 		ID:            setInfo[1],
