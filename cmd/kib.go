@@ -68,7 +68,7 @@ func ExtractData(mainHtml *goquery.Selection) Card {
 		ID:            setInfo[1],
 		CardType:      infos[1],
 		Level:         strings.Split(infos[2], "：")[1],
-		Color:         infos[3],
+		Colour:        infos[3],
 		Power:         strings.Split(infos[4], "：")[1],
 		Soul:          infos[5],
 		Cost:          strings.Split(infos[6], "：")[1],

@@ -47,7 +47,7 @@ type Card struct {
 	Name              string   `json:"name"`
 	JpName            string   `json:"jpName"`
 	CardType          string   `json:"cardType"`
-	Color             string   `json:"color"`
+	Colour            string   `json:"colour"`
 	Level             string   `json:"level"`
 	Cost              string   `json:"cost"`
 	Power             string   `json:"power"`

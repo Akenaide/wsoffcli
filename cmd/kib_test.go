@@ -85,8 +85,8 @@ func TestExtractData(t *testing.T) {
 	if card.Level != "2" {
 		t.Errorf("got %v: expected 2", card.Level)
 	}
-	if card.Color != "GREEN" {
-		t.Errorf("got %v: expected GREEN", card.Color)
+	if card.Colour != "GREEN" {
+		t.Errorf("got %v: expected GREEN", card.Colour)
 	}
 	if card.Power != "6000" {
 		t.Errorf("got %v: expected 6000", card.Power)
@@ -113,6 +113,7 @@ func TestExtractData(t *testing.T) {
 		t.Errorf("got %v: expected %v", card.Ability, expectedAbility)
 	}
 }
+
 func TestExtractDataEvent(t *testing.T) {
 	chara := `
 	<th><a href="/cardlist/?cardno=BD/W63-022&amp;l"><img src="https://s3-ap-northeast-1.amazonaws.com/static.ws-tcg.com/wordpress/wp-content/cardimages/b/bd_w63/bd_w63_022.gif" alt="ミッシェルからの伝言"></a></th>
