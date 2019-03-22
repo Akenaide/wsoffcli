@@ -55,7 +55,7 @@ func TestExtractData(t *testing.T) {
 	`
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(chara))
-	var expectedTrigger = []string{"SOUL", "BOUNCE", "SHOT", "TREASURE", "STANDBY", "SALVAGE", "GATE", "DRAW"}
+	var expectedTrigger = []string{"SOUL", "RETURN", "SHOT", "TREASURE", "STANDBY", "COMEBACK", "GATE", "DRAW"}
 	var expectedTrait = []string{"音楽", "Afterglow"}
 	var expectedAbility = []string{
 		"【永】 あなたのターン中、他のあなたの「“止まらずに、前へ”美竹蘭」がいるなら、このカードのパワーを＋6000。",
@@ -138,7 +138,7 @@ func TestExtractDataEvent(t *testing.T) {
 	`
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(chara))
-	var expectedTrigger = []string{""}
+	var expectedTrigger = []string{}
 
 	if err != nil {
 		log.Fatal(err)
@@ -151,6 +151,18 @@ func TestExtractDataEvent(t *testing.T) {
 
 	if card.CardType != "EV" {
 		t.Errorf("got %v: expected EV", card.CardType)
+	}
+
+	if !equalSlice(card.SpecialAttrib, []string{}) {
+		t.Errorf("got %v: expected empty", card.SpecialAttrib)
+	}
+
+	if card.Soul != "0" {
+		t.Errorf("got %v: expected ''", card.Soul)
+	}
+
+	if card.Power != "0" {
+		t.Errorf("got %v: expected 0", card.Power)
 	}
 }
 
@@ -187,5 +199,17 @@ func TestExtractDataCX(t *testing.T) {
 
 	if card.CardType != "CX" {
 		t.Errorf("got %v: expected CX", card.CardType)
+	}
+
+	if card.Soul != "0" {
+		t.Errorf("got %v: expected ''", card.Soul)
+	}
+
+	if card.Level != "0" {
+		t.Errorf("got %v: expected 0", card.Level)
+	}
+
+	if card.Cost != "0" {
+		t.Errorf("got %v: expected 0", card.Cost)
 	}
 }

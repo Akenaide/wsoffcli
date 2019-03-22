@@ -9,8 +9,30 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+var triggersMap = map[string]string{
+	"soul":     "SOUL",
+	"salvage":  "COMEBACK",
+	"draw":     "DRAW",
+	"stock":    "POOL",
+	"treasure": "TREASURE",
+	"shot":     "SHOT",
+	"bounce":   "RETURN",
+	"gate":     "GATE",
+	"standby":  "STANDBY",
+}
+
+func parseInt(st string) string {
+	res := strings.Split(st, "：")[1]
+	if strings.Contains(res, "-") {
+		res = "0"
+	}
+	return res
+}
+
 // ExtractData extract data to card
 func ExtractData(mainHtml *goquery.Selection) Card {
+	trigger := []string{}
+	sa := []string{}
 	complex := mainHtml.Find("h4 span").Last().Text()
 	set := strings.Split(complex, "/")[0]
 	side := strings.Split(complex, "/")[1][0]
@@ -35,7 +57,7 @@ func ExtractData(mainHtml *goquery.Selection) Card {
 				return "CX"
 			}
 		}
-		if s.Text() == "ソウル：" {
+		if strings.HasPrefix(s.Text(), "ソウル：") {
 			return strconv.Itoa(s.Children().Length())
 		}
 		if strings.HasPrefix(s.Text(), "トリガー：") {
@@ -45,7 +67,7 @@ func ExtractData(mainHtml *goquery.Selection) Card {
 					res.WriteString(" ")
 				}
 				_, trigger := path.Split(ss.AttrOr("src", "yay"))
-				res.WriteString(strings.Split(trigger, ".")[0])
+				res.WriteString(triggersMap[strings.Split(trigger, ".")[0]])
 			})
 			return strings.ToUpper(res.String())
 		}
@@ -54,11 +76,21 @@ func ExtractData(mainHtml *goquery.Selection) Card {
 			s.Children().Each(func(i int, ss *goquery.Selection) {
 				res.WriteString(ss.Text())
 			})
+			if strings.Contains(res.String(), "-") {
+				return ""
+			}
 			return res.String()
 		}
 		return s.Text()
 	})
 
+	if infos[8] != "" {
+		trigger = strings.Split(infos[8], " ")
+	}
+
+	if infos[9] != "" {
+		sa = strings.Split(infos[9], "・")
+	}
 	card := Card{
 		JpName:        strings.TrimSpace(mainHtml.Find("h4 span").First().Text()),
 		Set:           set,
@@ -67,14 +99,14 @@ func ExtractData(mainHtml *goquery.Selection) Card {
 		Release:       setInfo[0],
 		ID:            setInfo[1],
 		CardType:      infos[1],
-		Level:         strings.Split(infos[2], "：")[1],
+		Level:         parseInt(infos[2]),
 		Colour:        infos[3],
-		Power:         strings.Split(infos[4], "：")[1],
+		Power:         parseInt(infos[4]),
 		Soul:          infos[5],
-		Cost:          strings.Split(infos[6], "：")[1],
+		Cost:          parseInt(infos[6]),
 		Rarity:        strings.Split(infos[7], "：")[1],
-		Trigger:       strings.Split(infos[8], " "),
-		SpecialAttrib: strings.Split(infos[9], "・"),
+		Trigger:       trigger,
+		SpecialAttrib: sa,
 		Ability:       strings.Split(ability, "<br/>"),
 	}
 	return card
