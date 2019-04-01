@@ -34,6 +34,7 @@ import (
 
 var cfgFile string
 var serieNumber string
+var allRarity bool
 
 const baseurl = "https://ws-tcg.com/cardlist/search"
 
@@ -103,8 +104,11 @@ to quickly create a Cobra application.`,
 			doc.Find(".search-result-table tr").Each(func(i int, s *goquery.Selection) {
 				var buffer bytes.Buffer
 				card := ExtractData(s)
-				if err != nil {
-					log.Fatal(err)
+
+				if !allRarity {
+					if !IsbaseRarity(card) {
+						return
+					}
 				}
 				res, errMarshal := json.Marshal(card)
 				if errMarshal != nil {
@@ -122,32 +126,6 @@ to quickly create a Cobra application.`,
 			page = page + 1
 
 		}
-
-		// for _, cookie := range resp.Cookies() {
-		// 	fmt.Println("Found a cookie named:", cookie.Name)
-		// }
-		// resp.Body.Close()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		// resp2, err := client.Get(baseurl + "?page=2")
-		// defer resp2.Body.Close()
-		// doc2, err := goquery.NewDocumentFromReader(resp2.Body)
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		// doc2.Find(".search-result-table").Each(func(i int, s *goquery.Selection) {
-		// 	html, err := s.Html()
-		// 	if err != nil {
-		// 		log.Fatal(err)
-		// 	}
-		// 	fmt.Println(html)
-		// })
-
-		// for _, cookie := range resp2.Cookies() {
-		// 	fmt.Println("Found a cookie named:", cookie.Name)
-		// }
-
 	},
 }
 
@@ -167,6 +145,7 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 	rootCmd.PersistentFlags().StringVar(&serieNumber, "serie", "", "serie number")
+	rootCmd.PersistentFlags().BoolVarP(&allRarity, "allrarity", "a", false, "get all rarity (sp, ssp, sbr, etc...)")
 }
 
 // initConfig reads in config file and ENV variables if set.

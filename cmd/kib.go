@@ -9,6 +9,15 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+var baseRarity = [6]string{
+	"RR",
+	"R",
+	"U",
+	"C",
+	"CR",
+	"CC",
+}
+
 var triggersMap = map[string]string{
 	"soul":     "SOUL",
 	"salvage":  "COMEBACK",
@@ -111,4 +120,14 @@ func ExtractData(mainHtml *goquery.Selection) Card {
 	}
 	return card
 
+}
+
+func IsbaseRarity(card Card) bool {
+
+	for _, rarity := range baseRarity {
+		if rarity == card.Rarity {
+			return true
+		}
+	}
+	return false
 }
