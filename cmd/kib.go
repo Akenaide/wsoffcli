@@ -14,7 +14,7 @@ import (
 
 var re = regexp.MustCompile(`<img .*>`)
 
-var baseRarity = [7]string{
+var baseRarity = [8]string{
 	"RR",
 	"R",
 	"U",
@@ -22,6 +22,7 @@ var baseRarity = [7]string{
 	"CR",
 	"CC",
 	"PR",
+	"TD",
 }
 
 var triggersMap = map[string]string{
@@ -148,7 +149,7 @@ func ExtractData(mainHtml *goquery.Selection) Card {
 		SpecialAttrib: sa,
 		Ability:       ability,
 	}
-	log.Println(card.ID)
+	log.Printf("%v-%v \n", card.Set, card.ID)
 	return card
 
 }

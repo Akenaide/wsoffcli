@@ -34,6 +34,7 @@ import (
 
 var cfgFile string
 var serieNumber string
+var neo string
 var allRarity bool
 
 const baseurl = "https://ws-tcg.com/cardlist/search"
@@ -88,6 +89,9 @@ to quickly create a Cobra application.`,
 		if serieNumber != "" {
 			values.Add("expansion", serieNumber)
 		}
+		if neo != "" {
+			values.Add("title_number", fmt.Sprintf("##%v##", neo))
+		}
 		for {
 			resp, err := client.PostForm(fmt.Sprintf("%v?page=%d", baseurl, page), values)
 			if err != nil {
@@ -114,7 +118,7 @@ to quickly create a Cobra application.`,
 				if errMarshal != nil {
 					log.Println(errMarshal)
 				}
-				// fmt.Println(string(res))
+				// fmt.Println(fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID))
 				out, err := os.Create(fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID))
 				if err != nil {
 					log.Println(err.Error())
@@ -145,6 +149,7 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 	rootCmd.PersistentFlags().StringVar(&serieNumber, "serie", "", "serie number")
+	rootCmd.PersistentFlags().StringVarP(&neo, "neo", "n", "", "Neo standar by set")
 	rootCmd.PersistentFlags().BoolVarP(&allRarity, "allrarity", "a", false, "get all rarity (sp, ssp, sbr, etc...)")
 }
 
