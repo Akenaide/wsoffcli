@@ -14,13 +14,14 @@ import (
 
 var re = regexp.MustCompile(`<img .*>`)
 
-var baseRarity = [6]string{
+var baseRarity = [7]string{
 	"RR",
 	"R",
 	"U",
 	"C",
 	"CR",
 	"CC",
+	"PR",
 }
 
 var triggersMap = map[string]string{
@@ -45,11 +46,17 @@ func parseInt(st string) string {
 
 // ExtractData extract data to card
 func ExtractData(mainHtml *goquery.Selection) Card {
+
 	var imgPlaceHolder string
 	trigger := []string{}
 	sa := []string{}
 	ability := []string{}
 	complex := mainHtml.Find("h4 span").Last().Text()
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("Panic for %v", complex)
+		}
+	}()
 	set := strings.Split(complex, "/")[0]
 	side := strings.Split(complex, "/")[1][0]
 	setInfo := strings.Split(strings.Split(complex, "/")[1][1:], "-")
