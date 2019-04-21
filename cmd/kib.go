@@ -2,12 +2,17 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
+	"log"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
+
+var re = regexp.MustCompile(`<img .*>`)
 
 var baseRarity = [6]string{
 	"RR",
@@ -40,20 +45,35 @@ func parseInt(st string) string {
 
 // ExtractData extract data to card
 func ExtractData(mainHtml *goquery.Selection) Card {
+	var imgPlaceHolder string
 	trigger := []string{}
 	sa := []string{}
+	ability := []string{}
 	complex := mainHtml.Find("h4 span").Last().Text()
 	set := strings.Split(complex, "/")[0]
 	side := strings.Split(complex, "/")[1][0]
 	setInfo := strings.Split(strings.Split(complex, "/")[1][1:], "-")
-	var ability, _ = mainHtml.Find("span").Last().Html()
 	setName := strings.TrimSpace(strings.Split(mainHtml.Find("h4").Text(), ") -")[1])
+	var abilityNode, _ = mainHtml.Find("span").Last().Html()
+	var imgURL, has = mainHtml.Find("span").Last().Find("img").Attr("src")
+
+	if has {
+		_, _imgPlaceHolder := path.Split(imgURL)
+		_imgPlaceHolder = strings.Split(_imgPlaceHolder, ".")[0]
+		imgPlaceHolder = fmt.Sprintf("[%v]", triggersMap[_imgPlaceHolder])
+	}
+
+	for _, line := range strings.Split(abilityNode, "<br/>") {
+		ability = append(ability, re.ReplaceAllString(line, imgPlaceHolder))
+	}
 
 	infos := mainHtml.Find(".unit").Map(func(i int, s *goquery.Selection) string {
+		// Color
 		if s.Text() == "色：" {
 			_, colorName := path.Split(s.Children().AttrOr("src", "yay"))
 			return strings.ToUpper(strings.Split(colorName, ".")[0])
 		}
+		// Card type
 		if strings.HasPrefix(s.Text(), "種類：") {
 			var cType = strings.TrimSpace(strings.Split(s.Text(), "種類：")[1])
 
@@ -66,9 +86,11 @@ func ExtractData(mainHtml *goquery.Selection) Card {
 				return "CX"
 			}
 		}
+		// Soul
 		if strings.HasPrefix(s.Text(), "ソウル：") {
 			return strconv.Itoa(s.Children().Length())
 		}
+		// Trigger
 		if strings.HasPrefix(s.Text(), "トリガー：") {
 			var res bytes.Buffer
 			s.Children().Each(func(i int, ss *goquery.Selection) {
@@ -80,6 +102,7 @@ func ExtractData(mainHtml *goquery.Selection) Card {
 			})
 			return strings.ToUpper(res.String())
 		}
+		// Trait
 		if strings.HasPrefix(s.Text(), "特徴：") {
 			var res bytes.Buffer
 			s.Children().Each(func(i int, ss *goquery.Selection) {
@@ -116,8 +139,9 @@ func ExtractData(mainHtml *goquery.Selection) Card {
 		Rarity:        strings.Split(infos[7], "：")[1],
 		Trigger:       trigger,
 		SpecialAttrib: sa,
-		Ability:       strings.Split(ability, "<br/>"),
+		Ability:       ability,
 	}
+	log.Println(card.ID)
 	return card
 
 }

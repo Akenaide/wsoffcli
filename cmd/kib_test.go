@@ -110,7 +110,7 @@ func TestExtractData(t *testing.T) {
 		t.Errorf("got %v: expected %v", card.SpecialAttrib, expectedTrait)
 	}
 	if !equalSlice(card.Ability, expectedAbility) {
-		t.Errorf("got %v: expected %v", card.Ability, expectedAbility)
+		t.Errorf("got \n %v: expected \n %v", card.Ability, expectedAbility)
 	}
 }
 
@@ -211,5 +211,9 @@ func TestExtractDataCX(t *testing.T) {
 
 	if card.Cost != "0" {
 		t.Errorf("got %v: expected 0", card.Cost)
+	}
+
+	if strings.Contains(card.Ability[1], "img") {
+		t.Errorf("got img tag in %v", card.Ability)
 	}
 }
