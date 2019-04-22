@@ -14,6 +14,12 @@ import (
 
 var re = regexp.MustCompile(`<img .*>`)
 
+var suffix = []string{
+	"SP",
+	"S",
+	"R",
+}
+
 var baseRarity = [8]string{
 	"RR",
 	"R",
@@ -157,9 +163,18 @@ func ExtractData(mainHtml *goquery.Selection) Card {
 func IsbaseRarity(card Card) bool {
 
 	for _, rarity := range baseRarity {
-		if rarity == card.Rarity {
+		if rarity == card.Rarity && isTrullyNotFoil(card) {
 			return true
 		}
 	}
 	return false
+}
+
+func isTrullyNotFoil(card Card) bool {
+	for _, _suffix := range suffix {
+		if strings.HasSuffix(card.ID, _suffix) {
+			return false
+		}
+	}
+	return true
 }
