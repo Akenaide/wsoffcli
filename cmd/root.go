@@ -23,6 +23,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"os"
+	"path/filepath"
 
 	"golang.org/x/net/publicsuffix"
 
@@ -114,12 +115,16 @@ to quickly create a Cobra application.`,
 						return
 					}
 				}
+
 				res, errMarshal := json.Marshal(card)
 				if errMarshal != nil {
 					log.Println(errMarshal)
 				}
 				// fmt.Println(fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID))
-				out, err := os.Create(fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID))
+				var cardName = fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID)
+				var dirName = filepath.Join(card.Set, fmt.Sprintf("%v%v", card.Side, card.Release))
+				os.MkdirAll(dirName, 0744)
+				out, err := os.Create(filepath.Join(dirName, cardName))
 				if err != nil {
 					log.Println(err.Error())
 				}
