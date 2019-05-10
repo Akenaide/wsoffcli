@@ -15,19 +15,9 @@
 package cmd
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"log"
-	"net/http"
-	"net/http/cookiejar"
-	"net/url"
 	"os"
-	"path/filepath"
 
-	"golang.org/x/net/publicsuffix"
-
-	"github.com/PuerkitoBio/goquery"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -38,7 +28,8 @@ var serieNumber string
 var neo string
 var allRarity bool
 
-const baseurl = "https://ws-tcg.com/cardlist/search"
+// Baseurl base url
+const Baseurl = "https://ws-tcg.com/cardlist/search"
 
 // Card info to export
 type Card struct {
@@ -67,75 +58,14 @@ type Card struct {
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "wsoffcli",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Collect data from https://ws-tcg.com/",
+	Long: `Collect data from https://ws-tcg.com/.
+	Create a json file for each card with most information.
+	 `,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
-	Run: func(cmd *cobra.Command, args []string) {
-		jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
-		if err != nil {
-			log.Fatal(err)
-		}
-		page := 1
-		client := &http.Client{Jar: jar}
-		values := url.Values{
-			"cmd":             {"search"},
-			"show_page_count": {"100"},
-		}
-		if serieNumber != "" {
-			values.Add("expansion", serieNumber)
-		}
-		if neo != "" {
-			values.Add("title_number", fmt.Sprintf("##%v##", neo))
-		}
-		for {
-			resp, err := client.PostForm(fmt.Sprintf("%v?page=%d", baseurl, page), values)
-			if err != nil {
-				log.Fatal(err)
-			}
-			if resp.StatusCode == 404 {
-				break
-			}
-			log.Println("Fetch page : ", page, "with params : ", values)
-			doc, err := goquery.NewDocumentFromReader(resp.Body)
-			if err != nil {
-				log.Fatal(err)
-			}
-			doc.Find(".search-result-table tr").Each(func(i int, s *goquery.Selection) {
-				var buffer bytes.Buffer
-				card := ExtractData(s)
-
-				if !allRarity {
-					if !IsbaseRarity(card) {
-						return
-					}
-				}
-
-				res, errMarshal := json.Marshal(card)
-				if errMarshal != nil {
-					log.Println(errMarshal)
-				}
-				// fmt.Println(fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID))
-				var cardName = fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID)
-				var dirName = filepath.Join(card.Set, fmt.Sprintf("%v%v", card.Side, card.Release))
-				os.MkdirAll(dirName, 0744)
-				out, err := os.Create(filepath.Join(dirName, cardName))
-				if err != nil {
-					log.Println(err.Error())
-				}
-				defer out.Close()
-				json.Indent(&buffer, res, "", "\t")
-				buffer.WriteTo(out)
-			})
-			page = page + 1
-
-		}
-	},
+	// Run: func(cmd *cobra.Command, args []string) {
+	// },
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -153,7 +83,7 @@ func init() {
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
-	rootCmd.PersistentFlags().StringVar(&serieNumber, "serie", "", "serie number")
+	rootCmd.PersistentFlags().StringVarP(&serieNumber, "serie", "s", "", "serie number")
 	rootCmd.PersistentFlags().StringVarP(&neo, "neo", "n", "", "Neo standar by set")
 	rootCmd.PersistentFlags().BoolVarP(&allRarity, "allrarity", "a", false, "get all rarity (sp, ssp, sbr, etc...)")
 }
