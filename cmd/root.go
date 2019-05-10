@@ -60,7 +60,15 @@ var rootCmd = &cobra.Command{
 	Use:   "wsoffcli",
 	Short: "Collect data from https://ws-tcg.com/",
 	Long: `Collect data from https://ws-tcg.com/.
+
 Create a json file for each card with most information.
+
+Example:
+'wsoffcli fetch -n IMC' will fetch all cards with a code starting with 'IMC'
+
+If you want more than one use '##' as seperator like 'wsoffcli fetch -n BD##IM'
+
+'--serie' use a hidden number in the official site, this number is increment for each new set (e.g Kadokawa is number 259, Goblin 260 ...)
 	 `,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:

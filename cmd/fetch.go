@@ -34,8 +34,10 @@ import (
 // fetchCmd represents the fetch command
 var fetchCmd = &cobra.Command{
 	Use:   "fetch",
-	Short: "Fetch",
-	Long:  `Fetch`,
+	Short: "Fetch cards",
+    Long: `Fetch cards
+
+Use global switches to specify the set, by default it will fetch all sets.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("fetch called")
 		jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})

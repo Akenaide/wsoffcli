@@ -1,10 +1,12 @@
 ## wsoffcli fetch
 
-Fetch
+Fetch cards
 
 ### Synopsis
 
-Fetch
+Fetch cards
+
+Use global switches to specify the set, by default it will fetch all sets.
 
 ```
 wsoffcli fetch [flags]
