@@ -1,0 +1,9 @@
+language: go
+go:
+  - 1.x
+  - 1.12.5
+  - master
+
+jobs:
+  allow_failures:
+    - go: master
