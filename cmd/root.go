@@ -60,7 +60,7 @@ var rootCmd = &cobra.Command{
 	Use:   "wsoffcli",
 	Short: "Collect data from https://ws-tcg.com/",
 	Long: `Collect data from https://ws-tcg.com/.
-	Create a json file for each card with most information.
+Create a json file for each card with most information.
 	 `,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
