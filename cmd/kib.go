@@ -52,13 +52,13 @@ func parseInt(st string) string {
 }
 
 // ExtractData extract data to card
-func ExtractData(mainHtml *goquery.Selection) Card {
+func ExtractData(mainHTML *goquery.Selection) Card {
 
 	var imgPlaceHolder string
 	trigger := []string{}
 	sa := []string{}
 	ability := []string{}
-	complex := mainHtml.Find("h4 span").Last().Text()
+	complex := mainHTML.Find("h4 span").Last().Text()
 	defer func() {
 		if err := recover(); err != nil {
 			log.Printf("Panic for %v", complex)
@@ -67,9 +67,9 @@ func ExtractData(mainHtml *goquery.Selection) Card {
 	set := strings.Split(complex, "/")[0]
 	side := strings.Split(complex, "/")[1][0]
 	setInfo := strings.Split(strings.Split(complex, "/")[1][1:], "-")
-	setName := strings.TrimSpace(strings.Split(mainHtml.Find("h4").Text(), ") -")[1])
-	var abilityNode, _ = mainHtml.Find("span").Last().Html()
-	var imgURL, has = mainHtml.Find("span").Last().Find("img").Attr("src")
+	setName := strings.TrimSpace(strings.Split(mainHTML.Find("h4").Text(), ") -")[1])
+	var abilityNode, _ = mainHTML.Find("span").Last().Html()
+	var imgURL, has = mainHTML.Find("span").Last().Find("img").Attr("src")
 
 	if has {
 		_, _imgPlaceHolder := path.Split(imgURL)
@@ -81,7 +81,7 @@ func ExtractData(mainHtml *goquery.Selection) Card {
 		ability = append(ability, re.ReplaceAllString(line, imgPlaceHolder))
 	}
 
-	infos := mainHtml.Find(".unit").Map(func(i int, s *goquery.Selection) string {
+	infos := mainHTML.Find(".unit").Map(func(i int, s *goquery.Selection) string {
 		// Color
 		if s.Text() == "色：" {
 			_, colorName := path.Split(s.Children().AttrOr("src", "yay"))
@@ -138,7 +138,7 @@ func ExtractData(mainHtml *goquery.Selection) Card {
 		sa = strings.Split(infos[9], "・")
 	}
 	card := Card{
-		JpName:        strings.TrimSpace(mainHtml.Find("h4 span").First().Text()),
+		JpName:        strings.TrimSpace(mainHTML.Find("h4 span").First().Text()),
 		Set:           set,
 		SetName:       setName,
 		Side:          string(side),
@@ -160,6 +160,7 @@ func ExtractData(mainHtml *goquery.Selection) Card {
 
 }
 
+// IsbaseRarity check if a card is a C / U / R / RR
 func IsbaseRarity(card Card) bool {
 
 	for _, rarity := range baseRarity {
