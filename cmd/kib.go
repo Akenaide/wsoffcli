@@ -20,7 +20,9 @@ var suffix = []string{
 	"R",
 }
 
-var baseRarity = [8]string{
+var baseRarity = []string{
+	"FR",
+	"PS",
 	"RR",
 	"R",
 	"U",
