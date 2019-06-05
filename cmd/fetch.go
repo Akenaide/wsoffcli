@@ -24,6 +24,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"golang.org/x/net/publicsuffix"
 
@@ -31,16 +32,51 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const maxWorker int = 10
+
+type furniture struct {
+	Jobs    chan string
+	Values  url.Values
+	Kanseru *bool
+	Wg      *sync.WaitGroup
+	Client  *http.Client
+}
+
+func worker(id int, furni furniture, respChannel chan<- *http.Response) {
+	for link := range furni.Jobs {
+		if *furni.Kanseru {
+			return
+		}
+		log.Println("ID :", id, "Fetch page : ", link, "with params : ", furni.Values)
+		resp, err := furni.Client.PostForm(link, furni.Values)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if resp.StatusCode == 404 {
+			*furni.Kanseru = true
+		} else {
+			respChannel <- resp
+			furni.Wg.Add(1)
+		}
+
+	}
+}
+
 // fetchCmd represents the fetch command
 var fetchCmd = &cobra.Command{
 	Use:   "fetch",
 	Short: "Fetch cards",
-    Long: `Fetch cards
+	Long: `Fetch cards
 
 Use global switches to specify the set, by default it will fetch all sets.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("fetch called")
 		jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+		var wg sync.WaitGroup
+		var kanseru = false
+		var respChannel = make(chan *http.Response, 3)
+		var jobs = make(chan string, 10)
+
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -56,48 +92,68 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		if neo != "" {
 			values.Add("title_number", fmt.Sprintf("##%v##", neo))
 		}
-		for {
-			resp, err := client.PostForm(fmt.Sprintf("%v?page=%d", Baseurl, page), values)
-			if err != nil {
-				log.Fatal(err)
-			}
-			if resp.StatusCode == 404 {
-				break
-			}
-			log.Println("Fetch page : ", page, "with params : ", values)
-			doc, err := goquery.NewDocumentFromReader(resp.Body)
-			if err != nil {
-				log.Fatal(err)
-			}
-			doc.Find(".search-result-table tr").Each(func(i int, s *goquery.Selection) {
-				var buffer bytes.Buffer
-				card := ExtractData(s)
-
-				if !allRarity {
-					if !IsbaseRarity(card) {
-						return
+		go func() {
+			for {
+				select {
+				case resp := <-respChannel:
+					doc, err := goquery.NewDocumentFromReader(resp.Body)
+					if err != nil {
+						log.Fatal(err)
 					}
-				}
+					doc.Find(".search-result-table tr").Each(func(i int, s *goquery.Selection) {
+						card := ExtractData(s)
 
-				res, errMarshal := json.Marshal(card)
-				if errMarshal != nil {
-					log.Println(errMarshal)
+						if !allRarity {
+							if !IsbaseRarity(card) {
+								return
+							}
+						}
+
+						res, errMarshal := json.Marshal(card)
+						if errMarshal != nil {
+							log.Println(errMarshal)
+						}
+						// fmt.Println(fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID))
+						var buffer bytes.Buffer
+						var cardName = fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID)
+						var dirName = filepath.Join(card.Set, fmt.Sprintf("%v%v", card.Side, card.Release))
+						os.MkdirAll(dirName, 0744)
+						out, err := os.Create(filepath.Join(dirName, cardName))
+						if err != nil {
+							log.Println(err.Error())
+						}
+						defer out.Close()
+						json.Indent(&buffer, res, "", "\t")
+						buffer.WriteTo(out)
+					})
+					wg.Done()
 				}
-				// fmt.Println(fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID))
-				var cardName = fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID)
-				var dirName = filepath.Join(card.Set, fmt.Sprintf("%v%v", card.Side, card.Release))
-				os.MkdirAll(dirName, 0744)
-				out, err := os.Create(filepath.Join(dirName, cardName))
-				if err != nil {
-					log.Println(err.Error())
-				}
-				defer out.Close()
-				json.Indent(&buffer, res, "", "\t")
-				buffer.WriteTo(out)
-			})
+			}
+		}()
+
+		var furni = furniture{
+			Client:  client,
+			Jobs:    jobs,
+			Kanseru: &kanseru,
+			Values:  values,
+			Wg:      &wg,
+		}
+
+		for i := 0; i < maxWorker; i++ {
+			go worker(i, furni, respChannel)
+		}
+
+		for {
+			jobs <- fmt.Sprintf("%v?page=%d", Baseurl, page)
 			page = page + 1
 
+			if kanseru {
+				close(jobs)
+				break
+			}
 		}
+
+		wg.Wait()
 
 	},
 }
@@ -114,4 +170,5 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// fetchCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
 }
