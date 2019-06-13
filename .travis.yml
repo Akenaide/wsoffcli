@@ -13,6 +13,7 @@ deploy:
     secure: SX/KQPaWeNTIfgQKjY+5pfkYKa794FUrxSwLY8f1Iui8f/dDVxRaRlRC5oPXOm/6uT+OY6+or5B6QbPItm7hhWHEdQn/QhV6uCs0Mxm+NF1IwJu5/NA77HKMVrj0kMczQIl+Cj/eobkfxNbpZCyG0bhM9FPQuXVngqWI4afXDuebSk/s9DPwjznnKkfrF6jC8y5mITv44894loYn9E5Gi+Yb+3JGXgGt80VmLvf7JOzRzigL9gotnN6drscBT5De8NMZ2TP97AKq2zp27uIStyKWaNf+cXiZbzx+4Ly31mjgxmLetibsrtFJNUw8y/AdS7KHg4aNdZuI5TqJReNtkyaYBtdIMooCT1DdmeAtvEplt5SdKteoCQLwcFnYdv3NJNETGnCBeZjwvNQVQ2VcvkHJnfQ0WZK09FjlJVqDQYQuXVpSTewnuf+FBDnrbZQPPflhT/jJT+qbfDqpTWu5TxoI8ySS9CDCRDI75gf6Fnqkg6gGP+fyRueSL/Sn6db41RTGJEfYkYPHCyqk8eJN6Ho+ePANkZitcIqK9YqvrQ8Qb3fu2McO46sjEEh6S7lBZFHe0u+pOhCYr7k535y9mpzY8CTes+B+bLm1jOmrW7e1YBfjA6TkVwY5hcxLuO9Iy0Sq/ExAZp9TJSTtVxNQtwMRZNbGdAml4WfCk4TjWL0=
   file: build/*
   file_glob: true
+  skip_cleanup: true
   on:
-      # tags: true
-      repo: Akenaide/wsoffcli
+      tags: true
+      # repo: Akenaide/wsoffcli
