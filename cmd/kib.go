@@ -21,16 +21,19 @@ var suffix = []string{
 }
 
 var baseRarity = []string{
-	"FR",
-	"PS",
-	"RR",
-	"R",
-	"U",
 	"C",
-	"CR",
 	"CC",
+	"CR",
+	"FR",
+	"MR",
 	"PR",
+	"PS",
+	"R",
+	"RE",
+	"RR",
+	"RR+",
 	"TD",
+	"U",
 }
 
 var triggersMap = map[string]string{
