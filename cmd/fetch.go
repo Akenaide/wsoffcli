@@ -85,6 +85,7 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		values := url.Values{
 			"cmd":             {"search"},
 			"show_page_count": {"100"},
+			"show_small":      {"0"},
 		}
 		if serieNumber != "" {
 			values.Add("expansion", serieNumber)
