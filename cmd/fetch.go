@@ -48,15 +48,16 @@ func worker(id int, furni furniture, respChannel chan<- *http.Response) {
 			return
 		}
 		log.Println("ID :", id, "Fetch page : ", link, "with params : ", furni.Values)
+		furni.Wg.Add(1)
 		resp, err := furni.Client.PostForm(link, furni.Values)
 		if err != nil {
 			log.Fatal(err)
 		}
 		if resp.StatusCode == 404 {
 			*furni.Kanseru = true
+			furni.Wg.Done()
 		} else {
 			respChannel <- resp
-			furni.Wg.Add(1)
 		}
 
 	}
