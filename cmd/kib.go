@@ -161,7 +161,7 @@ func ExtractData(mainHTML *goquery.Selection) Card {
 		SpecialAttrib: sa,
 		Ability:       ability,
 	}
-	log.Printf("%v-%v \n", card.Set, card.ID)
+	log.Printf("%v/%v-%v \n", card.Set, card.Release, card.ID)
 	return card
 
 }

@@ -43,26 +43,25 @@ type furniture struct {
 	Jar     http.CookieJar
 }
 
-func worker(id int, furni furniture, respChannel chan<- *http.Response) {
+func worker(id int, furni furniture, respChannel chan<- *http.Response, retry chan<- string) {
 	for link := range furni.Jobs {
 		if *furni.Kanseru {
 			return
 		}
 		log.Println("ID :", id, "Fetch page : ", link, "with params : ", furni.Values)
-		furni.Wg.Add(1)
 		proxy := biri.GetClient()
 		proxy.Client.Jar = furni.Jar
 		resp, err := proxy.Client.PostForm(link, furni.Values)
 		if err != nil {
 			proxy.Ban()
-			furni.Jobs <- link
-			furni.Wg.Done()
+			retry <- link
 			log.Println(err)
 		} else {
 			if resp.StatusCode == 302 {
 				*furni.Kanseru = true
-				furni.Wg.Done()
+				log.Printf("Kanseru by : %v", link)
 			} else {
+				furni.Wg.Add(1)
 				proxy.Readd()
 				respChannel <- resp
 			}
@@ -80,6 +79,8 @@ var fetchCmd = &cobra.Command{
 Use global switches to specify the set, by default it will fetch all sets.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("fetch called")
+		biri.Config.PingServer = "https://ws-tcg.com/"
+		biri.Config.TickMinuteDuration = 2
 		jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 
 		if err != nil {
@@ -90,6 +91,7 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		var kanseru = false
 		var respChannel = make(chan *http.Response, 3)
 		var jobs = make(chan string, 10)
+		var retry = make(chan string, 50)
 		biri.ProxyStart()
 
 		page := 1
@@ -110,11 +112,14 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 				case resp := <-respChannel:
 					doc, err := goquery.NewDocumentFromReader(resp.Body)
 					if err != nil {
-						log.Fatal(err)
+						retry <- resp.Request.URL.String()
+						log.Println(err)
+						wg.Done()
+						return
 					}
 					resultTable := doc.Find(".search-result-table tr")
 
-					if resultTable.Length() == 0 {
+					if resultTable.Length() == 0 && resp.StatusCode == 200 {
 						kanseru = true
 					} else {
 						resultTable.Each(func(i int, s *goquery.Selection) {
@@ -158,14 +163,21 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		}
 
 		for i := 0; i < maxWorker; i++ {
-			go worker(i, furni, respChannel)
+			go worker(i, furni, respChannel, retry)
 		}
 
 		for {
-			jobs <- fmt.Sprintf("%v?page=%d", Baseurl, page)
-			page = page + 1
+			select {
+			case retryLink := <-retry:
+				jobs <- retryLink
+				log.Printf("Retry: %v", retryLink)
+			default:
+				jobs <- fmt.Sprintf("%v?page=%d", Baseurl, page)
+				page = page + 1
+			}
 
 			if kanseru {
+				log.Println("Kanseru at: ", page)
 				break
 			}
 		}
