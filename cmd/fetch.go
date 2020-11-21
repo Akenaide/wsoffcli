@@ -32,7 +32,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const maxWorker int = 10
+const maxWorker int = 5
 
 type furniture struct {
 	Jobs    chan string
@@ -53,7 +53,7 @@ func worker(id int, furni furniture, respChannel chan<- *http.Response) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		if resp.StatusCode == 404 {
+		if resp.StatusCode == 302 {
 			*furni.Kanseru = true
 			furni.Wg.Done()
 		} else {
@@ -102,32 +102,38 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 					if err != nil {
 						log.Fatal(err)
 					}
-					doc.Find(".search-result-table tr").Each(func(i int, s *goquery.Selection) {
-						card := ExtractData(s)
+					resultTable := doc.Find(".search-result-table tr")
 
-						if !allRarity {
-							if !IsbaseRarity(card) {
-								return
+					if resultTable.Length() == 0 {
+						kanseru = true
+					} else {
+						resultTable.Each(func(i int, s *goquery.Selection) {
+							card := ExtractData(s)
+
+							if !allRarity {
+								if !IsbaseRarity(card) {
+									return
+								}
 							}
-						}
 
-						res, errMarshal := json.Marshal(card)
-						if errMarshal != nil {
-							log.Println(errMarshal)
-						}
-						// fmt.Println(fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID))
-						var buffer bytes.Buffer
-						var cardName = fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID)
-						var dirName = filepath.Join(card.Set, fmt.Sprintf("%v%v", card.Side, card.Release))
-						os.MkdirAll(dirName, 0744)
-						out, err := os.Create(filepath.Join(dirName, cardName))
-						if err != nil {
-							log.Println(err.Error())
-						}
-						defer out.Close()
-						json.Indent(&buffer, res, "", "\t")
-						buffer.WriteTo(out)
-					})
+							res, errMarshal := json.Marshal(card)
+							if errMarshal != nil {
+								log.Println(errMarshal)
+							}
+							// fmt.Println(fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID))
+							var buffer bytes.Buffer
+							var cardName = fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID)
+							var dirName = filepath.Join(card.Set, fmt.Sprintf("%v%v", card.Side, card.Release))
+							os.MkdirAll(dirName, 0744)
+							out, err := os.Create(filepath.Join(dirName, cardName))
+							if err != nil {
+								log.Println(err.Error())
+							}
+							defer out.Close()
+							json.Indent(&buffer, res, "", "\t")
+							buffer.WriteTo(out)
+						})
+					}
 					wg.Done()
 				}
 			}
@@ -150,7 +156,6 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 			page = page + 1
 
 			if kanseru {
-				close(jobs)
 				break
 			}
 		}
