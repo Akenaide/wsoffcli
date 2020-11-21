@@ -46,6 +46,7 @@ var triggersMap = map[string]string{
 	"bounce":   "RETURN",
 	"gate":     "GATE",
 	"standby":  "STANDBY",
+	"choice":   "CHOICE",
 }
 
 func parseInt(st string) string {
