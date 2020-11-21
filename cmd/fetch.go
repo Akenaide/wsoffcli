@@ -28,6 +28,7 @@ import (
 
 	"golang.org/x/net/publicsuffix"
 
+	"github.com/Akenaide/biri"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/spf13/cobra"
 )
@@ -39,7 +40,7 @@ type furniture struct {
 	Values  url.Values
 	Kanseru *bool
 	Wg      *sync.WaitGroup
-	Client  *http.Client
+	Jar     http.CookieJar
 }
 
 func worker(id int, furni furniture, respChannel chan<- *http.Response) {
@@ -49,15 +50,22 @@ func worker(id int, furni furniture, respChannel chan<- *http.Response) {
 		}
 		log.Println("ID :", id, "Fetch page : ", link, "with params : ", furni.Values)
 		furni.Wg.Add(1)
-		resp, err := furni.Client.PostForm(link, furni.Values)
+		proxy := biri.GetClient()
+		proxy.Client.Jar = furni.Jar
+		resp, err := proxy.Client.PostForm(link, furni.Values)
 		if err != nil {
-			log.Fatal(err)
-		}
-		if resp.StatusCode == 302 {
-			*furni.Kanseru = true
+			proxy.Ban()
+			furni.Jobs <- link
 			furni.Wg.Done()
+			log.Println(err)
 		} else {
-			respChannel <- resp
+			if resp.StatusCode == 302 {
+				*furni.Kanseru = true
+				furni.Wg.Done()
+			} else {
+				proxy.Readd()
+				respChannel <- resp
+			}
 		}
 
 	}
@@ -73,16 +81,18 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("fetch called")
 		jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
-		var wg sync.WaitGroup
-		var kanseru = false
-		var respChannel = make(chan *http.Response, 3)
-		var jobs = make(chan string, 10)
 
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		var wg sync.WaitGroup
+		var kanseru = false
+		var respChannel = make(chan *http.Response, 3)
+		var jobs = make(chan string, 10)
+		biri.ProxyStart()
+
 		page := 1
-		client := &http.Client{Jar: jar}
 		values := url.Values{
 			"cmd":             {"search"},
 			"show_page_count": {"100"},
@@ -140,11 +150,11 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		}()
 
 		var furni = furniture{
-			Client:  client,
 			Jobs:    jobs,
 			Kanseru: &kanseru,
 			Values:  values,
 			Wg:      &wg,
+			Jar:     jar,
 		}
 
 		for i := 0; i < maxWorker; i++ {
@@ -161,6 +171,7 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		}
 
 		wg.Wait()
+		biri.Done()
 
 	},
 }
