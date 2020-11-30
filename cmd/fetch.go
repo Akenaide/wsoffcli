@@ -34,6 +34,7 @@ import (
 )
 
 const maxWorker int = 5
+var page int
 
 type furniture struct {
 	Jobs    chan string
@@ -94,7 +95,6 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		var retry = make(chan string, 50)
 		biri.ProxyStart()
 
-		page := 1
 		values := url.Values{
 			"cmd":             {"search"},
 			"show_page_count": {"100"},
@@ -200,5 +200,7 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// fetchCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	fetchCmd.Flags().IntVar(&page, "page", 1, "Starting page")
+	// fetchCmd.Flags().BoolP("reverse", "r", false, "Reverse order")
 
 }
