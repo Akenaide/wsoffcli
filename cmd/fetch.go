@@ -34,29 +34,93 @@ import (
 )
 
 const maxWorker int = 5
+
 var page int
 
 type furniture struct {
-	Jobs    chan string
-	Values  url.Values
-	Kanseru *bool
-	Wg      *sync.WaitGroup
-	Jar     http.CookieJar
+	Jobs      chan string
+	Values    url.Values
+	Kanseru   *bool
+	Wg        *sync.WaitGroup
+	Jar       http.CookieJar
+	Transport *http.Transport
 }
 
-func worker(id int, furni furniture, respChannel chan<- *http.Response, retry chan<- string) {
-	for link := range furni.Jobs {
-		if *furni.Kanseru {
-			return
+func responseWorker(id int, furni furniture, respChannel chan *http.Response, writeChan chan *goquery.Selection, retry chan<- string) {
+	for resp := range respChannel {
+		log.Printf("Start page: %v", resp.Request.URL)
+		doc, err := goquery.NewDocumentFromReader(resp.Body)
+		if err != nil {
+			retry <- resp.Request.URL.String()
+			log.Println("goquery error: ", err)
+			furni.Wg.Done()
+			continue
 		}
+		resultTable := doc.Find(".search-result-table tr")
+
+		if resultTable.Length() == 0 && resp.StatusCode == 200 {
+			*furni.Kanseru = true
+		} else {
+			resultTable.Each(func(i int, s *goquery.Selection) {
+				furni.Wg.Add(1)
+				writeChan <- s
+
+			})
+		}
+		furni.Wg.Done()
+		log.Printf("Finish page: %v", resp.Request.URL)
+	}
+
+}
+
+func writeWorker(id int, furni furniture, writeChan chan *goquery.Selection) {
+	for s := range writeChan {
+
+		card := ExtractData(s)
+
+		if !allRarity {
+			if !IsbaseRarity(card) {
+				furni.Wg.Done()
+				continue
+			}
+		}
+
+		res, errMarshal := json.Marshal(card)
+		if errMarshal != nil {
+			log.Println("error marshal", errMarshal)
+			furni.Wg.Done()
+			continue
+		}
+		var buffer bytes.Buffer
+		var cardName = fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID)
+		var dirName = filepath.Join(card.Set, fmt.Sprintf("%v%v", card.Side, card.Release))
+		os.MkdirAll(dirName, 0744)
+		out, err := os.Create(filepath.Join(dirName, cardName))
+		if err != nil {
+			log.Println("write error", err.Error())
+			furni.Wg.Done()
+			continue
+		}
+		json.Indent(&buffer, res, "", "\t")
+		buffer.WriteTo(out)
+		out.Close()
+		furni.Wg.Done()
+		log.Println("Finish card- : ", cardName)
+	}
+}
+
+func worker(id int, furni furniture, respChannel chan *http.Response, retry chan<- string) {
+	for link := range furni.Jobs {
+
 		log.Println("ID :", id, "Fetch page : ", link, "with params : ", furni.Values)
 		proxy := biri.GetClient()
 		proxy.Client.Jar = furni.Jar
+
 		resp, err := proxy.Client.PostForm(link, furni.Values)
-		if err != nil {
+		if err != nil || resp.StatusCode != 200 {
+			log.Println("Ban proxy:", err)
 			proxy.Ban()
 			retry <- link
-			log.Println(err)
 		} else {
 			if resp.StatusCode == 302 {
 				*furni.Kanseru = true
@@ -67,8 +131,8 @@ func worker(id int, furni furniture, respChannel chan<- *http.Response, retry ch
 				respChannel <- resp
 			}
 		}
-
 	}
+	log.Println("Nani", id)
 }
 
 // fetchCmd represents the fetch command
@@ -90,9 +154,11 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 
 		var wg sync.WaitGroup
 		var kanseru = false
-		var respChannel = make(chan *http.Response, 3)
-		var jobs = make(chan string, 10)
+		var respChannel = make(chan *http.Response)
+		var writeChannel = make(chan *goquery.Selection)
+		var jobs = make(chan string)
 		var retry = make(chan string, 50)
+
 		biri.ProxyStart()
 
 		values := url.Values{
@@ -106,53 +172,6 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		if neo != "" {
 			values.Add("title_number", fmt.Sprintf("##%v##", neo))
 		}
-		go func() {
-			for {
-				select {
-				case resp := <-respChannel:
-					doc, err := goquery.NewDocumentFromReader(resp.Body)
-					if err != nil {
-						retry <- resp.Request.URL.String()
-						log.Println(err)
-						wg.Done()
-						return
-					}
-					resultTable := doc.Find(".search-result-table tr")
-
-					if resultTable.Length() == 0 && resp.StatusCode == 200 {
-						kanseru = true
-					} else {
-						resultTable.Each(func(i int, s *goquery.Selection) {
-							card := ExtractData(s)
-
-							if !allRarity {
-								if !IsbaseRarity(card) {
-									return
-								}
-							}
-
-							res, errMarshal := json.Marshal(card)
-							if errMarshal != nil {
-								log.Println(errMarshal)
-							}
-							// fmt.Println(fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID))
-							var buffer bytes.Buffer
-							var cardName = fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID)
-							var dirName = filepath.Join(card.Set, fmt.Sprintf("%v%v", card.Side, card.Release))
-							os.MkdirAll(dirName, 0744)
-							out, err := os.Create(filepath.Join(dirName, cardName))
-							if err != nil {
-								log.Println(err.Error())
-							}
-							defer out.Close()
-							json.Indent(&buffer, res, "", "\t")
-							buffer.WriteTo(out)
-						})
-					}
-					wg.Done()
-				}
-			}
-		}()
 
 		var furni = furniture{
 			Jobs:    jobs,
@@ -164,6 +183,9 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 
 		for i := 0; i < maxWorker; i++ {
 			go worker(i, furni, respChannel, retry)
+			go writeWorker(i, furni, writeChannel)
+			go writeWorker(i, furni, writeChannel)
+			go responseWorker(i, furni, respChannel, writeChannel, retry)
 		}
 
 		for {
@@ -182,6 +204,7 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 			}
 		}
 
+		log.Println("Waiting...")
 		wg.Wait()
 		biri.Done()
 
