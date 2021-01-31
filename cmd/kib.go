@@ -160,6 +160,8 @@ func ExtractData(mainHTML *goquery.Selection) Card {
 		Trigger:       trigger,
 		SpecialAttrib: sa,
 		Ability:       ability,
+		Version:       CardModelVersion,
+		Cardcode:      complex,
 	}
 	return card
 

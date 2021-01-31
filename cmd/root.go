@@ -53,7 +53,12 @@ type Card struct {
 	Trigger           []string `json:"trigger"`
 	Ability           []string `json:"ability"`
 	SpecialAttrib     []string `json:"specialAttrib"`
+	Version           string   `json:"version"`
+	Cardcode          string   `json:"cardcode"`
 }
+
+// CardModelVersion : Card format version
+const CardModelVersion = "2"
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
