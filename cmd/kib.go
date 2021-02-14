@@ -34,6 +34,7 @@ var baseRarity = []string{
 	"RR+",
 	"TD",
 	"U",
+    "AR",
 }
 
 var triggersMap = map[string]string{
