@@ -24,6 +24,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 
 	"golang.org/x/net/publicsuffix"
@@ -126,13 +127,25 @@ func worker(id int, furni furniture, respChannel chan *http.Response, retry chan
 				*furni.Kanseru = true
 				log.Printf("Kanseru by : %v", link)
 			} else {
-				furni.Wg.Add(1)
 				proxy.Readd()
 				respChannel <- resp
 			}
 		}
 	}
 	log.Println("Nani", id)
+}
+
+func getLastPage(doc *goquery.Document) int {
+	fmt.Print(doc.Filter(".pager").Html())
+	all := doc.Find(".pager .next")
+
+	all.Each(func(i int, s *goquery.Selection) {
+		fmt.Printf("%v/ text: %v\n", i, s.Text())
+	})
+
+	last, _ := strconv.Atoi(all.Prev().First().Text())
+	fmt.Printf("Go for %v pages\n", last)
+	return last
 }
 
 // fetchCmd represents the fetch command
@@ -181,6 +194,24 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 			Jar:     jar,
 		}
 
+		proxy := biri.GetClient()
+		proxy.Client.Jar = furni.Jar
+
+		resp, err := http.PostForm(fmt.Sprintf("%v?page=%d", Baseurl, 1), furni.Values)
+
+		if err != nil {
+			log.Fatal("Error on getting last page")
+		}
+
+		doc, err := goquery.NewDocumentFromReader(resp.Body)
+
+		if err != nil {
+			log.Fatal("Error on getting last page parse")
+
+		}
+		maxPage := getLastPage(doc)
+		wg.Add(maxPage)
+
 		for i := 0; i < maxWorker; i++ {
 			go worker(i, furni, respChannel, retry)
 			go writeWorker(i, furni, writeChannel)
@@ -188,24 +219,23 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 			go responseWorker(i, furni, respChannel, writeChannel, retry)
 		}
 
-		for {
-			select {
-			case retryLink := <-retry:
-				jobs <- retryLink
-				log.Printf("Retry: %v", retryLink)
-			default:
-				jobs <- fmt.Sprintf("%v?page=%d", Baseurl, page)
-				page = page + 1
+		go func() {
+			for i := 1; i <= maxPage; i++ {
+				jobs <- fmt.Sprintf("%v?page=%d", Baseurl, i)
 			}
+		}()
 
-			if kanseru {
-				log.Println("Kanseru at: ", page)
-				break
+		go func() {
+			for v := range retry {
+				jobs <- v
+				log.Printf("Retry: %v", v)
+
 			}
-		}
+		}()
 
 		log.Println("Waiting...")
 		wg.Wait()
+		close(jobs)
 		biri.Done()
 
 	},
