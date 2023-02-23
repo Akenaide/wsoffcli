@@ -1,6 +1,6 @@
 module main
 
-go 1.17
+go 1.20
 
 require (
 	github.com/Akenaide/biri v0.0.0-20210301141523-78f78053b5c3
