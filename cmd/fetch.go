@@ -47,7 +47,13 @@ type furniture struct {
 	Transport *http.Transport
 }
 
-func responseWorker(id int, furni furniture, respChannel chan *http.Response, writeChan chan *goquery.Selection, retry chan<- string) {
+func responseWorker(
+	id int,
+	furni furniture,
+	respChannel chan *http.Response,
+	writeChan chan *goquery.Selection,
+	retry chan<- string,
+) {
 	for resp := range respChannel {
 		log.Printf("Start page: %v", resp.Request.URL)
 		doc, err := goquery.NewDocumentFromReader(resp.Body)
@@ -65,13 +71,11 @@ func responseWorker(id int, furni furniture, respChannel chan *http.Response, wr
 			resultTable.Each(func(i int, s *goquery.Selection) {
 				furni.Wg.Add(1)
 				writeChan <- s
-
 			})
 		}
 		furni.Wg.Done()
 		log.Printf("Finish page: %v", resp.Request.URL)
 	}
-
 }
 
 func writeWorker(id int, furni furniture, writeChan chan *goquery.Selection) {
@@ -93,8 +97,8 @@ func writeWorker(id int, furni furniture, writeChan chan *goquery.Selection) {
 			continue
 		}
 		var buffer bytes.Buffer
-		var cardName = fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID)
-		var dirName = filepath.Join(card.Set, fmt.Sprintf("%v%v", card.Side, card.Release))
+		cardName := fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID)
+		dirName := filepath.Join(card.Set, fmt.Sprintf("%v%v", card.Side, card.Release))
 		os.MkdirAll(dirName, 0744)
 		out, err := os.Create(filepath.Join(dirName, cardName))
 		if err != nil {
@@ -160,17 +164,16 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		biri.Config.PingServer = "https://ws-tcg.com/"
 		biri.Config.TickMinuteDuration = 2
 		jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
-
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		var wg sync.WaitGroup
-		var kanseru = false
-		var respChannel = make(chan *http.Response)
-		var writeChannel = make(chan *goquery.Selection)
-		var jobs = make(chan string)
-		var retry = make(chan string, 50)
+		kanseru := false
+		respChannel := make(chan *http.Response)
+		writeChannel := make(chan *goquery.Selection)
+		jobs := make(chan string)
+		retry := make(chan string, 50)
 
 		biri.ProxyStart()
 
@@ -186,7 +189,7 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 			values.Add("title_number", fmt.Sprintf("##%v##", neo))
 		}
 
-		var furni = furniture{
+		furni := furniture{
 			Jobs:    jobs,
 			Kanseru: &kanseru,
 			Values:  values,
@@ -198,16 +201,13 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		proxy.Client.Jar = furni.Jar
 
 		resp, err := http.PostForm(fmt.Sprintf("%v?page=%d", Baseurl, 1), furni.Values)
-
 		if err != nil {
 			log.Fatal("Error on getting last page")
 		}
 
 		doc, err := goquery.NewDocumentFromReader(resp.Body)
-
 		if err != nil {
 			log.Fatal("Error on getting last page parse")
-
 		}
 		maxPage := getLastPage(doc)
 		wg.Add(maxPage)
@@ -237,7 +237,6 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		wg.Wait()
 		close(jobs)
 		biri.Done()
-
 	},
 }
 
@@ -255,5 +254,4 @@ func init() {
 	// fetchCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	fetchCmd.Flags().IntVar(&page, "page", 1, "Starting page")
 	// fetchCmd.Flags().BoolP("reverse", "r", false, "Reverse order")
-
 }
