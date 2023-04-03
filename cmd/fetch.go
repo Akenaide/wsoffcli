@@ -32,11 +32,10 @@ import (
 	"github.com/Akenaide/biri"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 const maxWorker int = 5
-
-var page int
 
 type furniture struct {
 	Jobs      chan string
@@ -59,7 +58,7 @@ func responseWorker(
 		doc, err := goquery.NewDocumentFromReader(resp.Body)
 		if err != nil {
 			retry <- resp.Request.URL.String()
-			log.Println("goquery error: ", err)
+			log.Println("goquery error: ", err, "for page: ", resp.Request.URL)
 			furni.Wg.Done()
 			continue
 		}
@@ -68,6 +67,7 @@ func responseWorker(
 		if resultTable.Length() == 0 && resp.StatusCode == 200 {
 			*furni.Kanseru = true
 		} else {
+			log.Println("Found cards !!", resp.Request.URL)
 			resultTable.Each(func(i int, s *goquery.Selection) {
 				furni.Wg.Add(1)
 				writeChan <- s
@@ -144,11 +144,11 @@ func getLastPage(doc *goquery.Document) int {
 	all := doc.Find(".pager .next")
 
 	all.Each(func(i int, s *goquery.Selection) {
-		fmt.Printf("%v/ text: %v\n", i, s.Text())
+		log.Printf("getLastPage %v/ text: %v\n", i, s.Text())
 	})
 
 	last, _ := strconv.Atoi(all.Prev().First().Text())
-	fmt.Printf("Go for %v pages\n", last)
+	log.Printf("Last pages is %v\n", last)
 	return last
 }
 
@@ -160,7 +160,11 @@ var fetchCmd = &cobra.Command{
 
 Use global switches to specify the set, by default it will fetch all sets.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		page := viper.GetInt("page")
+		iter := viper.GetInt("iter")
+		loopNum := 0
 		fmt.Println("fetch called")
+		log.Printf("Starting from page %v\n", page)
 		biri.Config.PingServer = "https://ws-tcg.com/"
 		biri.Config.TickMinuteDuration = 2
 		jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
@@ -210,7 +214,15 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 			log.Fatal("Error on getting last page parse")
 		}
 		maxPage := getLastPage(doc)
-		wg.Add(maxPage)
+
+		if iter == 0 {
+			loopNum = maxPage - page + 1
+		} else {
+			loopNum = iter
+		}
+
+		log.Printf("Number of loop %v\n", loopNum)
+		wg.Add(loopNum)
 
 		for i := 0; i < maxWorker; i++ {
 			go worker(i, furni, respChannel, retry)
@@ -220,8 +232,14 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		}
 
 		go func() {
-			for i := 1; i <= maxPage; i++ {
-				jobs <- fmt.Sprintf("%v?page=%d", Baseurl, i)
+			if viper.GetBool("reverse") {
+				for i := maxPage; i >= page; i-- {
+					jobs <- fmt.Sprintf("%v?page=%d", Baseurl, i)
+				}
+			} else {
+				for i := page; i <= maxPage; i++ {
+					jobs <- fmt.Sprintf("%v?page=%d", Baseurl, i)
+				}
 			}
 		}()
 
@@ -237,6 +255,7 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		wg.Wait()
 		close(jobs)
 		biri.Done()
+
 	},
 }
 
@@ -252,6 +271,11 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// fetchCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	fetchCmd.Flags().IntVar(&page, "page", 1, "Starting page")
-	// fetchCmd.Flags().BoolP("reverse", "r", false, "Reverse order")
+	fetchCmd.Flags().IntP("page", "p", 1, "Starting page")
+	fetchCmd.Flags().IntP("iter", "i", 0, "Number of iteration")
+	fetchCmd.Flags().BoolP("reverse", "r", false, "Reverse order")
+
+	viper.BindPFlag("page", fetchCmd.Flags().Lookup("page"))
+	viper.BindPFlag("iter", fetchCmd.Flags().Lookup("iter"))
+	viper.BindPFlag("reverse", fetchCmd.Flags().Lookup("reverse"))
 }
