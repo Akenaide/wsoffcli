@@ -55,10 +55,12 @@ type Card struct {
 	SpecialAttrib     []string `json:"specialAttrib"`
 	Version           string   `json:"version"`
 	Cardcode          string   `json:"cardcode"`
+	ImageURL          string   `json:"imageURL"`
+	Tags              []string `json:"tags"`
 }
 
 // CardModelVersion : Card format version
-const CardModelVersion = "2"
+const CardModelVersion = "3"
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -99,6 +101,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&serieNumber, "serie", "s", "", "serie number")
 	rootCmd.PersistentFlags().StringVarP(&neo, "neo", "n", "", "Neo standar by set")
 	rootCmd.PersistentFlags().BoolVarP(&allRarity, "allrarity", "a", false, "get all rarity (sp, ssp, sbr, etc...)")
+
 }
 
 // initConfig reads in config file and ENV variables if set.

@@ -34,7 +34,7 @@ var baseRarity = []string{
 	"RR+",
 	"TD",
 	"U",
-    "AR",
+	"AR",
 }
 
 var triggersMap = map[string]string{
@@ -75,6 +75,7 @@ func ExtractData(mainHTML *goquery.Selection) Card {
 	side := strings.Split(complex, "/")[1][0]
 	setInfo := strings.Split(strings.Split(complex, "/")[1][1:], "-")
 	setName := strings.TrimSpace(strings.Split(mainHTML.Find("h4").Text(), ") -")[1])
+	imageCardURL, _ := mainHTML.Find("a img").Attr("src")
 	var abilityNode, _ = mainHTML.Find("span").Last().Html()
 	var imgURL, has = mainHTML.Find("span").Last().Find("img").Attr("src")
 
@@ -163,6 +164,7 @@ func ExtractData(mainHTML *goquery.Selection) Card {
 		Ability:       ability,
 		Version:       CardModelVersion,
 		Cardcode:      complex,
+		ImageURL:      imageCardURL,
 	}
 	return card
 
