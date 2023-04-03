@@ -32,11 +32,10 @@ import (
 	"github.com/Akenaide/biri"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 const maxWorker int = 5
-
-var page int
 
 type furniture struct {
 	Jobs      chan string
@@ -144,11 +143,11 @@ func getLastPage(doc *goquery.Document) int {
 	all := doc.Find(".pager .next")
 
 	all.Each(func(i int, s *goquery.Selection) {
-		fmt.Printf("%v/ text: %v\n", i, s.Text())
+		log.Printf("getLastPage %v/ text: %v\n", i, s.Text())
 	})
 
 	last, _ := strconv.Atoi(all.Prev().First().Text())
-	fmt.Printf("Go for %v pages\n", last)
+	log.Printf("Go for %v pages\n", last)
 	return last
 }
 
@@ -160,7 +159,9 @@ var fetchCmd = &cobra.Command{
 
 Use global switches to specify the set, by default it will fetch all sets.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		page := viper.GetInt("page")
 		fmt.Println("fetch called")
+		log.Printf("Starting from page %v\n", page)
 		biri.Config.PingServer = "https://ws-tcg.com/"
 		biri.Config.TickMinuteDuration = 2
 		jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
@@ -210,7 +211,9 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 			log.Fatal("Error on getting last page parse")
 		}
 		maxPage := getLastPage(doc)
-		wg.Add(maxPage)
+		loop_num := maxPage - page + 1
+		log.Printf("Number of loop %v\n", loop_num)
+		wg.Add(loop_num)
 
 		for i := 0; i < maxWorker; i++ {
 			go worker(i, furni, respChannel, retry)
@@ -220,7 +223,7 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		}
 
 		go func() {
-			for i := 1; i <= maxPage; i++ {
+			for i := page; i <= maxPage; i++ {
 				jobs <- fmt.Sprintf("%v?page=%d", Baseurl, i)
 			}
 		}()
@@ -237,6 +240,10 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		wg.Wait()
 		close(jobs)
 		biri.Done()
+
+		if viper.GetBool("incremental") {
+			// write in config
+		}
 	},
 }
 
@@ -252,6 +259,10 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// fetchCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	fetchCmd.Flags().IntVar(&page, "page", 1, "Starting page")
+	fetchCmd.Flags().IntP("page", "p", 1, "Starting page")
+	fetchCmd.Flags().BoolP("incremental", "i", false, "Save last page")
+
+	viper.BindPFlag("page", fetchCmd.Flags().Lookup("page"))
+	viper.BindPFlag("incremental", fetchCmd.Flags().Lookup("incremental"))
 	// fetchCmd.Flags().BoolP("reverse", "r", false, "Reverse order")
 }
