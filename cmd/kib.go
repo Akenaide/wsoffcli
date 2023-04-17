@@ -60,7 +60,6 @@ func parseInt(st string) string {
 
 // ExtractData extract data to card
 func ExtractData(mainHTML *goquery.Selection) Card {
-
 	var imgPlaceHolder string
 	trigger := []string{}
 	sa := []string{}
@@ -76,8 +75,8 @@ func ExtractData(mainHTML *goquery.Selection) Card {
 	setInfo := strings.Split(strings.Split(complex, "/")[1][1:], "-")
 	setName := strings.TrimSpace(strings.Split(mainHTML.Find("h4").Text(), ") -")[1])
 	imageCardURL, _ := mainHTML.Find("a img").Attr("src")
-	var abilityNode, _ = mainHTML.Find("span").Last().Html()
-	var imgURL, has = mainHTML.Find("span").Last().Find("img").Attr("src")
+	abilityNode, _ := mainHTML.Find("span").Last().Html()
+	imgURL, has := mainHTML.Find("span").Last().Find("img").Attr("src")
 
 	if has {
 		_, _imgPlaceHolder := path.Split(imgURL)
@@ -97,7 +96,7 @@ func ExtractData(mainHTML *goquery.Selection) Card {
 		}
 		// Card type
 		if strings.HasPrefix(s.Text(), "種類：") {
-			var cType = strings.TrimSpace(strings.Split(s.Text(), "種類：")[1])
+			cType := strings.TrimSpace(strings.Split(s.Text(), "種類：")[1])
 
 			switch cType {
 			case "イベント":
@@ -167,12 +166,10 @@ func ExtractData(mainHTML *goquery.Selection) Card {
 		ImageURL:      imageCardURL,
 	}
 	return card
-
 }
 
 // IsbaseRarity check if a card is a C / U / R / RR
 func IsbaseRarity(card Card) bool {
-
 	for _, rarity := range baseRarity {
 		if rarity == card.Rarity && isTrullyNotFoil(card) {
 			return true
