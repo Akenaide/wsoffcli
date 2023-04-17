@@ -83,13 +83,6 @@ func writeWorker(id int, furni furniture, writeChan chan *goquery.Selection) {
 
 		card := ExtractData(s)
 
-		if !allRarity {
-			if !IsbaseRarity(card) {
-				furni.Wg.Done()
-				continue
-			}
-		}
-
 		res, errMarshal := json.Marshal(card)
 		if errMarshal != nil {
 			log.Println("error marshal", errMarshal)
@@ -193,6 +186,10 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 			values.Add("title_number", fmt.Sprintf("##%v##", neo))
 		}
 
+		if !viper.GetBool("allrarity") {
+			values.Add("parallel", "1")
+		}
+
 		furni := furniture{
 			Jobs:    jobs,
 			Kanseru: &kanseru,
@@ -274,8 +271,10 @@ func init() {
 	fetchCmd.Flags().IntP("page", "p", 1, "Starting page")
 	fetchCmd.Flags().IntP("iter", "i", 0, "Number of iteration")
 	fetchCmd.Flags().BoolP("reverse", "r", false, "Reverse order")
+	fetchCmd.Flags().BoolP("allrarity", "a", false, "get all rarity (sp, ssp, sbr, etc...)")
 
 	viper.BindPFlag("page", fetchCmd.Flags().Lookup("page"))
 	viper.BindPFlag("iter", fetchCmd.Flags().Lookup("iter"))
 	viper.BindPFlag("reverse", fetchCmd.Flags().Lookup("reverse"))
+	viper.BindPFlag("allrarity", fetchCmd.Flags().Lookup("allrarity"))
 }

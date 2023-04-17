@@ -100,7 +100,6 @@ func init() {
 	// will be global for your application.
 	rootCmd.PersistentFlags().StringVarP(&serieNumber, "serie", "s", "", "serie number")
 	rootCmd.PersistentFlags().StringVarP(&neo, "neo", "n", "", "Neo standar by set")
-	rootCmd.PersistentFlags().BoolVarP(&allRarity, "allrarity", "a", false, "get all rarity (sp, ssp, sbr, etc...)")
 
 }
 
