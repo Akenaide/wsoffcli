@@ -157,6 +157,7 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		iter := viper.GetInt("iter")
 		loopNum := 0
 		fmt.Println("fetch called")
+		fmt.Printf("Settings: %v\n", viper.AllSettings())
 		log.Printf("Starting from page %v\n", page)
 		biri.Config.PingServer = "https://ws-tcg.com/"
 		biri.Config.TickMinuteDuration = 2
