@@ -75,7 +75,9 @@ Example:
 
 If you want more than one use '##' as seperator like 'wsoffcli fetch -n BD##IM'
 
-'--serie' use a hidden number in the official site, this number is increment for each new set (e.g Kadokawa is number 259, Goblin 260 ...)
+'--serie' use a hidden number in the official site, this number is increment for each new set (e.g Kadokawa is number 259, Goblin 260 ...).
+
+To use environ variable, use the prefix 'WSOFF'.
 	 `,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
@@ -117,6 +119,7 @@ func initConfig() {
 		}
 
 		// Search config in home directory with name ".wsoffcli" (without extension).
+		viper.SetEnvPrefix("wsoff")
 		viper.AddConfigPath(home)
 		viper.SetConfigName(".wsoffcli")
 	}
