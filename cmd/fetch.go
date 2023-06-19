@@ -153,12 +153,10 @@ var fetchCmd = &cobra.Command{
 
 Use global switches to specify the set, by default it will fetch all sets.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		page := viper.GetInt("page")
 		iter := viper.GetInt("iter")
 		loopNum := 0
 		fmt.Println("fetch called")
 		fmt.Printf("Settings: %v\n", viper.AllSettings())
-		log.Printf("Starting from page %v\n", page)
 		biri.Config.PingServer = "https://ws-tcg.com/"
 		biri.Config.TickMinuteDuration = 2
 		jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
@@ -214,7 +212,7 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		maxPage := getLastPage(doc)
 
 		if iter == 0 {
-			loopNum = maxPage - page + 1
+			loopNum = maxPage
 		} else {
 			loopNum = iter
 		}
@@ -231,11 +229,11 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 
 		go func() {
 			if viper.GetBool("reverse") {
-				for i := maxPage; i >= page; i-- {
+				for i := maxPage; i+iter >= maxPage; i-- {
 					jobs <- fmt.Sprintf("%v?page=%d", Baseurl, i)
 				}
 			} else {
-				for i := page; i <= maxPage; i++ {
+				for i := 1; i <= iter; i++ {
 					jobs <- fmt.Sprintf("%v?page=%d", Baseurl, i)
 				}
 			}
@@ -269,7 +267,6 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// fetchCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	fetchCmd.Flags().IntP("page", "p", 1, "Starting page")
 	fetchCmd.Flags().IntP("iter", "i", 0, "Number of iteration")
 	fetchCmd.Flags().BoolP("reverse", "r", false, "Reverse order")
 	fetchCmd.Flags().BoolP("allrarity", "a", false, "get all rarity (sp, ssp, sbr, etc...)")
