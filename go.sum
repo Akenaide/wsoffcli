@@ -36,8 +36,8 @@ cloud.google.com/go/storage v1.8.0/go.mod h1:Wv1Oy7z6Yz3DshWRJFhqM/UCfaWIRTdp0RX
 cloud.google.com/go/storage v1.10.0/go.mod h1:FLPqc6j+Ki4BU591ie1oL6qBQGu2Bl/tZ9ullr3+Kg0=
 cloud.google.com/go/storage v1.14.0/go.mod h1:GrKmX003DSIwi9o29oFT7YDnHYwZoctc3fOKtUw0Xmo=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
-github.com/Akenaide/biri v0.0.0-20210301141523-78f78053b5c3 h1:/3ru2t4sPh0bJi95cJDcm2MNKDXFz86S8FEV6Cgz14k=
-github.com/Akenaide/biri v0.0.0-20210301141523-78f78053b5c3/go.mod h1:8NB1JWYEwvLC9o7TturttizivSeAty0RG1ASc+RsGGM=
+github.com/Akenaide/biri v1.0.0 h1:/gDuK+gI8D56YzOAb54Vt7Bu69LvX93h4mpoqZeVFjI=
+github.com/Akenaide/biri v1.0.0/go.mod h1:H9BfGB1i49dqIwHbzFfxQ6FjlMagSlgEjhcdmnLvOi8=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/PuerkitoBio/goquery v1.8.1 h1:uQxhNlArOIdbrH1tr0UXwdVFgDcZDrZVdcpygAcwmWM=

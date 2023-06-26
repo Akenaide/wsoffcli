@@ -112,6 +112,7 @@ func worker(id int, furni furniture, respChannel chan *http.Response, retry chan
 
 		log.Println("ID :", id, "Fetch page : ", link, "with params : ", furni.Values)
 		proxy := biri.GetClient()
+		log.Println("Got proxy")
 		proxy.Client.Jar = furni.Jar
 
 		resp, err := proxy.Client.PostForm(link, furni.Values)
@@ -158,7 +159,7 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		fmt.Println("fetch called")
 		fmt.Printf("Settings: %v\n", viper.AllSettings())
 		biri.Config.PingServer = "https://ws-tcg.com/"
-		biri.Config.TickMinuteDuration = 2
+		biri.Config.TickMinuteDuration = 1
 		jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 		if err != nil {
 			log.Fatal(err)
@@ -213,6 +214,7 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 
 		if iter == 0 {
 			loopNum = maxPage
+			iter = maxPage
 		} else {
 			loopNum = iter
 		}
@@ -229,13 +231,15 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 
 		go func() {
 			if viper.GetBool("reverse") {
-				for i := maxPage; i+iter >= maxPage; i-- {
-					jobs <- fmt.Sprintf("%v?page=%d", Baseurl, i)
+				for i := 0; i < iter; i++ {
+					jobs <- fmt.Sprintf("%v?page=%d", Baseurl, maxPage-i)
 				}
+				log.Print("Finished loop")
 			} else {
 				for i := 1; i <= iter; i++ {
 					jobs <- fmt.Sprintf("%v?page=%d", Baseurl, i)
 				}
+				log.Print("Finished loop")
 			}
 		}()
 
