@@ -3,7 +3,7 @@ module github.com/Akenaide/wsoffcli
 go 1.20
 
 require (
-	github.com/Akenaide/biri v1.0.0
+	github.com/Akenaide/biri v1.2.0
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/spf13/cobra v1.6.1
