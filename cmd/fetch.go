@@ -92,7 +92,7 @@ func writeWorker(id int, furni furniture, writeChan chan *goquery.Selection) {
 		var buffer bytes.Buffer
 		cardName := fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID)
 		dirName := filepath.Join(card.Set, fmt.Sprintf("%v%v", card.Side, card.Release))
-		os.MkdirAll(dirName, 0744)
+		os.MkdirAll(dirName, 0o744)
 		out, err := os.Create(filepath.Join(dirName, cardName))
 		if err != nil {
 			log.Println("write error", err.Error())
@@ -224,8 +224,10 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 
 		for i := 0; i < maxWorker; i++ {
 			go worker(i, furni, respChannel, retry)
-			go writeWorker(i, furni, writeChannel)
-			go writeWorker(i, furni, writeChannel)
+			if viper.GetString("export") == "card" {
+				go writeWorker(i, furni, writeChannel)
+				go writeWorker(i, furni, writeChannel)
+			}
 			go responseWorker(i, furni, respChannel, writeChannel, retry)
 		}
 
@@ -255,7 +257,6 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		wg.Wait()
 		close(jobs)
 		biri.Done()
-
 	},
 }
 
@@ -274,9 +275,11 @@ func init() {
 	fetchCmd.Flags().IntP("iter", "i", 0, "Number of iteration")
 	fetchCmd.Flags().BoolP("reverse", "r", false, "Reverse order")
 	fetchCmd.Flags().BoolP("allrarity", "a", false, "get all rarity (sp, ssp, sbr, etc...)")
+	fetchCmd.Flags().StringP("export", "e", "card", "export value: card, booster, all")
 
 	viper.BindPFlag("page", fetchCmd.Flags().Lookup("page"))
 	viper.BindPFlag("iter", fetchCmd.Flags().Lookup("iter"))
 	viper.BindPFlag("reverse", fetchCmd.Flags().Lookup("reverse"))
 	viper.BindPFlag("allrarity", fetchCmd.Flags().Lookup("allrarity"))
+	viper.BindPFlag("export", fetchCmd.Flags().Lookup("export"))
 }

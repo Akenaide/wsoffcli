@@ -55,9 +55,9 @@ func TestExtractData(t *testing.T) {
 	`
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(chara))
-	var expectedTrigger = []string{"SOUL", "RETURN", "SHOT", "TREASURE", "STANDBY", "COMEBACK", "GATE", "DRAW"}
-	var expectedTrait = []string{"音楽", "Afterglow"}
-	var expectedAbility = []string{
+	expectedTrigger := []string{"SOUL", "RETURN", "SHOT", "TREASURE", "STANDBY", "COMEBACK", "GATE", "DRAW"}
+	expectedTrait := []string{"音楽", "Afterglow"}
+	expectedAbility := []string{
 		"【永】 あなたのターン中、他のあなたの「“止まらずに、前へ”美竹蘭」がいるなら、このカードのパワーを＋6000。",
 		"【自】［(1)］ このカードがアタックした時 、あなたはコストを払ってよい。そうしたら、そのアタック中、あなたはトリガーステップにトリガーチェックを2回行う。",
 	}
@@ -138,7 +138,7 @@ func TestExtractDataEvent(t *testing.T) {
 	`
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(chara))
-	var expectedTrigger = []string{}
+	expectedTrigger := []string{}
 
 	if err != nil {
 		log.Fatal(err)
@@ -190,7 +190,6 @@ func TestExtractDataCX(t *testing.T) {
 	`
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(chara))
-
 	if err != nil {
 		log.Fatal(err)
 	}
