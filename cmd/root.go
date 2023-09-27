@@ -23,10 +23,12 @@ import (
 	"github.com/spf13/viper"
 )
 
-var cfgFile string
-var serieNumber string
-var neo string
-var allRarity bool
+var (
+	cfgFile     string
+	serieNumber string
+	neo         string
+	allRarity   bool
+)
 
 // Baseurl base url
 const Baseurl = "https://ws-tcg.com/cardlist/search"
@@ -102,7 +104,6 @@ func init() {
 	// will be global for your application.
 	rootCmd.PersistentFlags().StringVarP(&serieNumber, "serie", "s", "", "serie number")
 	rootCmd.PersistentFlags().StringVarP(&neo, "neo", "n", "", "Neo standar by set")
-
 }
 
 // initConfig reads in config file and ENV variables if set.

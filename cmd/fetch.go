@@ -37,6 +37,86 @@ import (
 
 const maxWorker int = 5
 
+type writerWorkerStruct struct {
+	mode       string
+	furni      furniture
+	writeChan  chan *goquery.Selection
+	boosterMap map[string]booster
+}
+
+type booster struct {
+	code  string
+	cards []Card
+}
+
+func (w *writerWorkerStruct) run() {
+	switch w.mode {
+	case "card":
+		go w.card()
+		go w.card()
+	case "booster":
+		go w.populateBooster()
+	}
+}
+
+func (w *writerWorkerStruct) populateBooster() {
+	for s := range w.writeChan {
+		newCard := ExtractData(s)
+		boosterCode := newCard.Side + newCard.Release
+		boosterObj := w.boosterMap[boosterCode]
+
+		boosterObj.cards = append(boosterObj.cards, newCard)
+		w.boosterMap[boosterCode] = boosterObj
+		w.furni.Wg.Done()
+	}
+}
+
+func (w *writerWorkerStruct) write() {
+	fmt.Println("Start write in mode: ", w.mode)
+	if w.mode == "booster" {
+		for k, v := range w.boosterMap {
+			log.Println("Found booster :", k)
+			filename := k + ".json"
+			updatedData, err := json.Marshal(v.cards)
+			if err != nil {
+				log.Println("Error marshal struct: ", k)
+			}
+			if err := os.WriteFile(filename, updatedData, 0o644); err != nil {
+				log.Println("Error writing :", k)
+			}
+		}
+	}
+}
+
+func (w *writerWorkerStruct) card() {
+	for s := range w.writeChan {
+
+		card := ExtractData(s)
+
+		res, errMarshal := json.Marshal(card)
+		if errMarshal != nil {
+			log.Println("error marshal", errMarshal)
+			w.furni.Wg.Done()
+			continue
+		}
+		var buffer bytes.Buffer
+		cardName := fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID)
+		dirName := filepath.Join(card.Set, fmt.Sprintf("%v%v", card.Side, card.Release))
+		os.MkdirAll(dirName, 0o744)
+		out, err := os.Create(filepath.Join(dirName, cardName))
+		if err != nil {
+			log.Println("write error", err.Error())
+			w.furni.Wg.Done()
+			continue
+		}
+		json.Indent(&buffer, res, "", "\t")
+		buffer.WriteTo(out)
+		out.Close()
+		w.furni.Wg.Done()
+		log.Println("Finish card- : ", cardName)
+	}
+}
+
 type furniture struct {
 	Jobs      chan string
 	Values    url.Values
@@ -59,7 +139,6 @@ func responseWorker(
 		if err != nil {
 			retry <- resp.Request.URL.String()
 			log.Println("goquery error: ", err, "for page: ", resp.Request.URL)
-			furni.Wg.Done()
 			continue
 		}
 		resultTable := doc.Find(".search-result-table tr")
@@ -75,35 +154,6 @@ func responseWorker(
 		}
 		furni.Wg.Done()
 		log.Printf("Finish page: %v", resp.Request.URL)
-	}
-}
-
-func writeWorker(id int, furni furniture, writeChan chan *goquery.Selection) {
-	for s := range writeChan {
-
-		card := ExtractData(s)
-
-		res, errMarshal := json.Marshal(card)
-		if errMarshal != nil {
-			log.Println("error marshal", errMarshal)
-			furni.Wg.Done()
-			continue
-		}
-		var buffer bytes.Buffer
-		cardName := fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID)
-		dirName := filepath.Join(card.Set, fmt.Sprintf("%v%v", card.Side, card.Release))
-		os.MkdirAll(dirName, 0744)
-		out, err := os.Create(filepath.Join(dirName, cardName))
-		if err != nil {
-			log.Println("write error", err.Error())
-			furni.Wg.Done()
-			continue
-		}
-		json.Indent(&buffer, res, "", "\t")
-		buffer.WriteTo(out)
-		out.Close()
-		furni.Wg.Done()
-		log.Println("Finish card- : ", cardName)
 	}
 }
 
@@ -160,6 +210,7 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		fmt.Printf("Settings: %v\n", viper.AllSettings())
 		biri.Config.PingServer = "https://ws-tcg.com/"
 		biri.Config.TickMinuteDuration = 1
+		biri.Config.Timeout = 25
 		jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 		if err != nil {
 			log.Fatal(err)
@@ -222,10 +273,15 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		log.Printf("Number of loop %v\n", loopNum)
 		wg.Add(loopNum)
 
+		writerWorker := writerWorkerStruct{
+			mode:       viper.GetString("export"),
+			furni:      furni,
+			writeChan:  writeChannel,
+			boosterMap: make(map[string]booster),
+		}
+		writerWorker.run()
 		for i := 0; i < maxWorker; i++ {
 			go worker(i, furni, respChannel, retry)
-			go writeWorker(i, furni, writeChannel)
-			go writeWorker(i, furni, writeChannel)
 			go responseWorker(i, furni, respChannel, writeChannel, retry)
 		}
 
@@ -255,7 +311,7 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		wg.Wait()
 		close(jobs)
 		biri.Done()
-
+		writerWorker.write()
 	},
 }
 
@@ -274,9 +330,11 @@ func init() {
 	fetchCmd.Flags().IntP("iter", "i", 0, "Number of iteration")
 	fetchCmd.Flags().BoolP("reverse", "r", false, "Reverse order")
 	fetchCmd.Flags().BoolP("allrarity", "a", false, "get all rarity (sp, ssp, sbr, etc...)")
+	fetchCmd.Flags().StringP("export", "e", "card", "export value: card, booster, all")
 
 	viper.BindPFlag("page", fetchCmd.Flags().Lookup("page"))
 	viper.BindPFlag("iter", fetchCmd.Flags().Lookup("iter"))
 	viper.BindPFlag("reverse", fetchCmd.Flags().Lookup("reverse"))
 	viper.BindPFlag("allrarity", fetchCmd.Flags().Lookup("allrarity"))
+	viper.BindPFlag("export", fetchCmd.Flags().Lookup("export"))
 }

@@ -19,7 +19,7 @@ func TestGetLastPage(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	var last = getLastPage(doc)
+	last := getLastPage(doc)
 	if last != 69 {
 		t.Errorf("%v is not last", last)
 	}

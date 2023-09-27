@@ -30,7 +30,7 @@ var gendocCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var docPath string = "doc"
 		fmt.Println("gendoc called")
-		os.Mkdir(docPath, 0744)
+		os.Mkdir(docPath, 0o744)
 		linkHandler := func(filename string) string {
 			if filename == "wsoffcli.md" {
 				return "../README.md"
