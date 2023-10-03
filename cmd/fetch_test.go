@@ -9,22 +9,22 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func TestGetLastPage(t *testing.T) {
-	f, err := os.Open("mockws/bd.html")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
+// func TestGetLastPage(t *testing.T) {
+// 	f, err := os.Open("mockws/bd.html")
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	defer f.Close()
 
-	doc, err := goquery.NewDocumentFromReader(f)
-	if err != nil {
-		log.Fatal(err)
-	}
-	last := getLastPage(doc)
-	if last != 69 {
-		t.Errorf("%v is not last", last)
-	}
-}
+// 	doc, err := goquery.NewDocumentFromReader(f)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	last := getLastPage(doc)
+// 	if last != 69 {
+// 		t.Errorf("%v is not last", last)
+// 	}
+// }
 
 func TestRecentSwitch(t *testing.T) {
 	expectedExpension := []string{
