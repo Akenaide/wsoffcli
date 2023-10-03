@@ -25,6 +25,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 
 	"golang.org/x/net/publicsuffix"
@@ -39,7 +40,7 @@ const maxWorker int = 5
 
 type writerWorkerStruct struct {
 	mode       string
-	furni      furniture
+	wg         *sync.WaitGroup
 	writeChan  chan *goquery.Selection
 	boosterMap map[string]booster
 }
@@ -47,6 +48,14 @@ type writerWorkerStruct struct {
 type booster struct {
 	code  string
 	cards []Card
+}
+
+type furniture struct {
+	Jobs     chan string
+	Values   url.Values
+	Wg       *sync.WaitGroup
+	Jar      http.CookieJar
+	lastPage int
 }
 
 func (w *writerWorkerStruct) run() {
@@ -67,7 +76,7 @@ func (w *writerWorkerStruct) populateBooster() {
 
 		boosterObj.cards = append(boosterObj.cards, newCard)
 		w.boosterMap[boosterCode] = boosterObj
-		w.furni.Wg.Done()
+		w.wg.Done()
 	}
 }
 
@@ -96,7 +105,7 @@ func (w *writerWorkerStruct) card() {
 		res, errMarshal := json.Marshal(card)
 		if errMarshal != nil {
 			log.Println("error marshal", errMarshal)
-			w.furni.Wg.Done()
+			w.wg.Done()
 			continue
 		}
 		var buffer bytes.Buffer
@@ -106,45 +115,34 @@ func (w *writerWorkerStruct) card() {
 		out, err := os.Create(filepath.Join(dirName, cardName))
 		if err != nil {
 			log.Println("write error", err.Error())
-			w.furni.Wg.Done()
+			w.wg.Done()
 			continue
 		}
 		json.Indent(&buffer, res, "", "\t")
 		buffer.WriteTo(out)
 		out.Close()
-		w.furni.Wg.Done()
+		w.wg.Done()
 		log.Println("Finish card- : ", cardName)
 	}
 }
 
-type furniture struct {
-	Jobs      chan string
-	Values    url.Values
-	Kanseru   *bool
-	Wg        *sync.WaitGroup
-	Jar       http.CookieJar
-	Transport *http.Transport
-}
-
 func responseWorker(
 	id int,
-	furni furniture,
+	furni *furniture,
 	respChannel chan *http.Response,
 	writeChan chan *goquery.Selection,
-	retry chan<- string,
 ) {
 	for resp := range respChannel {
 		log.Printf("Start page: %v", resp.Request.URL)
 		doc, err := goquery.NewDocumentFromReader(resp.Body)
 		if err != nil {
-			retry <- resp.Request.URL.String()
+			furni.Jobs <- resp.Request.URL.String()
 			log.Println("goquery error: ", err, "for page: ", resp.Request.URL)
 			continue
 		}
 		resultTable := doc.Find(".search-result-table tr")
 
 		if resultTable.Length() == 0 && resp.StatusCode == 200 {
-			*furni.Kanseru = true
 		} else {
 			log.Println("Found cards !!", resp.Request.URL)
 			resultTable.Each(func(i int, s *goquery.Selection) {
@@ -157,7 +155,7 @@ func responseWorker(
 	}
 }
 
-func worker(id int, furni furniture, respChannel chan *http.Response, retry chan<- string) {
+func worker(id int, furni *furniture, respChannel chan *http.Response) {
 	for link := range furni.Jobs {
 
 		log.Println("ID :", id, "Fetch page : ", link, "with params : ", furni.Values)
@@ -169,12 +167,9 @@ func worker(id int, furni furniture, respChannel chan *http.Response, retry chan
 		if err != nil || resp.StatusCode != 200 {
 			log.Println("Ban proxy:", err)
 			proxy.Ban()
-			retry <- link
+			furni.Jobs <- link
 		} else {
-			if resp.StatusCode == 302 {
-				*furni.Kanseru = true
-				log.Printf("Kanseru by : %v", link)
-			} else {
+			if resp.StatusCode != 302 {
 				proxy.Readd()
 				respChannel <- resp
 			}
@@ -183,17 +178,51 @@ func worker(id int, furni furniture, respChannel chan *http.Response, retry chan
 	log.Println("Nani", id)
 }
 
-func getLastPage(doc *goquery.Document) int {
-	fmt.Print(doc.Filter(".pager").Html())
+func (f *furniture) getLastPage() int {
+	resp, err := http.PostForm(fmt.Sprintf("%v?page=%d", Baseurl, 1), f.Values)
+	if err != nil {
+		log.Fatal("Error on getting last page")
+	}
+
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		log.Fatal("Error on getting last page parse")
+	}
 	all := doc.Find(".pager .next")
 
-	all.Each(func(i int, s *goquery.Selection) {
-		log.Printf("getLastPage %v/ text: %v\n", i, s.Text())
-	})
-
 	last, _ := strconv.Atoi(all.Prev().First().Text())
-	log.Printf("Last pages is %v\n", last)
+	// default is 1, there no .pager .next if it's the only page
+	if last == 0 {
+		last = 1
+	}
+	log.Println("Last pages is", last, " for :", f.Values)
+	f.lastPage = last
 	return last
+}
+
+func getRecentFurnitures(doc *goquery.Document) []furniture {
+	var furnitures = []furniture{}
+	// Find all <a> elements with onclick attributes within the <ul> element
+	doc.Find("div.system > ul.expansion-list a[onclick]").Each(func(i int, sel *goquery.Selection) {
+		onclickAttr, exists := sel.Attr("onclick")
+		if exists {
+			// Extract the integer value from the onclick attribute
+			parts := strings.Split(onclickAttr, "('")
+			if len(parts) >= 2 {
+				value := strings.TrimSuffix(parts[1], "')")
+				urlValues := url.Values{
+					"cmd":             {"search"},
+					"show_page_count": {"100"},
+					"show_small":      {"0"},
+					// TODO: this should use viper
+					"parallel":  {"0"},
+					"expansion": {value},
+				}
+				furnitures = append(furnitures, furniture{Values: urlValues})
+			}
+		}
+	})
+	return furnitures
 }
 
 // fetchCmd represents the fetch command
@@ -216,12 +245,11 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 			log.Fatal(err)
 		}
 
+		furnitures := []*furniture{}
+
 		var wg sync.WaitGroup
-		kanseru := false
 		respChannel := make(chan *http.Response)
 		writeChannel := make(chan *goquery.Selection)
-		jobs := make(chan string)
-		retry := make(chan string, 50)
 
 		biri.ProxyStart()
 
@@ -229,6 +257,7 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 			"cmd":             {"search"},
 			"show_page_count": {"100"},
 			"show_small":      {"0"},
+			"parallel":        {"0"},
 		}
 		if serieNumber != "" {
 			values.Add("expansion", serieNumber)
@@ -238,34 +267,43 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		}
 
 		if !viper.GetBool("allrarity") {
-			values.Add("parallel", "1")
+			values.Set("parallel", "1")
 		}
-
+		// Default furniture
 		furni := furniture{
-			Jobs:    jobs,
-			Kanseru: &kanseru,
-			Values:  values,
-			Wg:      &wg,
-			Jar:     jar,
+			Jobs:   make(chan string),
+			Values: values,
+			Wg:     &wg,
+			Jar:    jar,
 		}
 
-		proxy := biri.GetClient()
-		proxy.Client.Jar = furni.Jar
+		if viper.GetBool("recent") {
+			resp, err := http.Get("https://ws-tcg.com/cardlist/")
+			if err != nil {
+				log.Fatal("Error on get recent")
+			}
+			doc, err := goquery.NewDocumentFromReader(resp.Body)
+			if err != nil {
+				log.Fatal("Error on parse recent")
+			}
+			for _, recentfurni := range getRecentFurnitures(doc) {
+				copyFurni := furni
+				copyFurni.Values = recentfurni.Values
+				copyFurni.Jobs = make(chan string)
+				log.Println(furni, recentfurni)
+				furnitures = append(furnitures, &copyFurni)
+			}
+		} else {
+			furnitures = append(furnitures, &furni)
 
-		resp, err := http.PostForm(fmt.Sprintf("%v?page=%d", Baseurl, 1), furni.Values)
-		if err != nil {
-			log.Fatal("Error on getting last page")
 		}
 
-		doc, err := goquery.NewDocumentFromReader(resp.Body)
-		if err != nil {
-			log.Fatal("Error on getting last page parse")
+		for _, furni := range furnitures {
+			loopNum += furni.getLastPage()
 		}
-		maxPage := getLastPage(doc)
 
 		if iter == 0 {
-			loopNum = maxPage
-			iter = maxPage
+			iter = loopNum
 		} else {
 			loopNum = iter
 		}
@@ -275,41 +313,40 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 
 		writerWorker := writerWorkerStruct{
 			mode:       viper.GetString("export"),
-			furni:      furni,
+			wg:         &wg,
 			writeChan:  writeChannel,
 			boosterMap: make(map[string]booster),
 		}
 		writerWorker.run()
-		for i := 0; i < maxWorker; i++ {
-			go worker(i, furni, respChannel, retry)
-			go responseWorker(i, furni, respChannel, writeChannel, retry)
+		for _, furni := range furnitures {
+			for i := 0; i < maxWorker; i++ {
+				go worker(i, furni, respChannel)
+				go responseWorker(i, furni, respChannel, writeChannel)
+			}
+			go func(furni *furniture, iter int) {
+				fmt.Println("furni.lastPage:", furni.lastPage)
+				if viper.GetBool("reverse") {
+					for i := 0; i < iter; i++ {
+						// hotfix, more work needed to have a clean implementation
+						if furni.lastPage-i > 0 {
+							furni.Jobs <- fmt.Sprintf("%v?page=%d", Baseurl, furni.lastPage-i)
+						}
+					}
+				} else {
+					for i := 1; i <= iter; i++ {
+						// hotfix, more work needed to have a clean implementation
+						if i <= furni.lastPage {
+							furni.Jobs <- fmt.Sprintf("%v?page=%d", Baseurl, i)
+						}
+					}
+				}
+				log.Print("Finished loop")
+			}(furni, iter)
 		}
-
-		go func() {
-			if viper.GetBool("reverse") {
-				for i := 0; i < iter; i++ {
-					jobs <- fmt.Sprintf("%v?page=%d", Baseurl, maxPage-i)
-				}
-				log.Print("Finished loop")
-			} else {
-				for i := 1; i <= iter; i++ {
-					jobs <- fmt.Sprintf("%v?page=%d", Baseurl, i)
-				}
-				log.Print("Finished loop")
-			}
-		}()
-
-		go func() {
-			for v := range retry {
-				jobs <- v
-				log.Printf("Retry: %v", v)
-
-			}
-		}()
 
 		log.Println("Waiting...")
 		wg.Wait()
-		close(jobs)
+		// close(jobs)
 		biri.Done()
 		writerWorker.write()
 	},
@@ -331,10 +368,12 @@ func init() {
 	fetchCmd.Flags().BoolP("reverse", "r", false, "Reverse order")
 	fetchCmd.Flags().BoolP("allrarity", "a", false, "get all rarity (sp, ssp, sbr, etc...)")
 	fetchCmd.Flags().StringP("export", "e", "card", "export value: card, booster, all")
+	fetchCmd.Flags().BoolP("recent", "", false, "get all recent products")
 
 	viper.BindPFlag("page", fetchCmd.Flags().Lookup("page"))
 	viper.BindPFlag("iter", fetchCmd.Flags().Lookup("iter"))
 	viper.BindPFlag("reverse", fetchCmd.Flags().Lookup("reverse"))
 	viper.BindPFlag("allrarity", fetchCmd.Flags().Lookup("allrarity"))
 	viper.BindPFlag("export", fetchCmd.Flags().Lookup("export"))
+	viper.BindPFlag("recent", fetchCmd.Flags().Lookup("recent"))
 }

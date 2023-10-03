@@ -15,10 +15,12 @@ wsoffcli fetch [flags]
 ### Options
 
 ```
-  -a, --allrarity   get all rarity (sp, ssp, sbr, etc...)
-  -h, --help        help for fetch
-  -i, --iter int    Number of iteration
-  -r, --reverse     Reverse order
+  -a, --allrarity       get all rarity (sp, ssp, sbr, etc...)
+  -e, --export string   export value: card, booster, all (default "card")
+  -h, --help            help for fetch
+  -i, --iter int        Number of iteration
+      --recent          get all recent products
+  -r, --reverse         Reverse order
 ```
 
 ### Options inherited from parent commands
