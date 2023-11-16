@@ -1,19 +1,20 @@
-## wsoffcli gendoc
+## wsoffcli products
 
-Generate doc with Cobra
+Get products information
 
 ### Synopsis
 
-Generate documentation with Cobra
+Get products information.
+It will output the ReleaseDate, Title, Image, SetCode, LicenceCode in a 'product.json' file.
 
 ```
-wsoffcli gendoc [flags]
+wsoffcli products [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for gendoc
+  -h, --help   help for products
 ```
 
 ### Options inherited from parent commands
