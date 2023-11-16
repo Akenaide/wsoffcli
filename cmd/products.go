@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const PRODUCTS_URL = "https://ws-tcg.com/products/"
+const PRODUCTS_URL = "https://ws-tcg.com/products/page/"
 
 var BAN_PRODUCT = []string{
 	"new_title_ws",
@@ -89,9 +89,9 @@ func extractProductInfo(doc *goquery.Document) ProductInfo {
 	}
 }
 
-func fetchProduct() {
+func fetchProduct(page string) {
 	productList := []ProductInfo{}
-	doc := getDocument(PRODUCTS_URL)
+	doc := getDocument(PRODUCTS_URL + page)
 
 	doc.Find(".product-list .show-detail a").Each(func(i int, s *goquery.Selection) {
 		productDetail := s.AttrOr("href", "nope")
@@ -133,7 +133,7 @@ It will output the ReleaseDate, Title, Image, SetCode, LicenceCode in a 'product
 		biri.Config.Timeout = 25
 		biri.ProxyStart()
 
-		fetchProduct()
+		fetchProduct(cmd.Flag("page").Value.String())
 	},
 }
 
@@ -148,5 +148,5 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// productsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	productsCmd.Flags().Int16P("page", "p", 1, "Give which page to parse")
 }
