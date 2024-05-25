@@ -22,6 +22,7 @@ const PRODUCTS_URL = "https://ws-tcg.com/products/page/"
 var BAN_PRODUCT = []string{
 	"new_title_ws",
 	"resale_news",
+	"bp_renewal",
 }
 
 // ProductInfo represents the extracted information from the HTML

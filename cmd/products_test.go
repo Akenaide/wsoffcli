@@ -145,7 +145,7 @@ func TestExtractProductInfo(t *testing.T) {
 		t.Error("Image not good. Found: ", product.Image)
 	}
 
-    if product.SetCode != "W109" {
-        t.Error("SetCode not good. Found: ", product.SetCode)
-    }
+	if product.SetCode != "W109" {
+		t.Error("SetCode not good. Found: ", product.SetCode)
+	}
 }
