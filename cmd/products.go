@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 
 	"github.com/Akenaide/biri"
@@ -24,6 +25,8 @@ var BAN_PRODUCT = []string{
 	"resale_news",
 	"bp_renewal",
 }
+
+var TITLE_AND_WORK_NUMBER_REGEXP = regexp.MustCompile(".*/ .*：([\\w,]+)")
 
 // ProductInfo represents the extracted information from the HTML
 type ProductInfo struct {
@@ -60,13 +63,16 @@ func getDocument(url string) *goquery.Document {
 	return doc
 }
 
-func extractProductInfo(doc *goquery.Document) ProductInfo {
+func extractProductInfo(doc *goquery.Document) (ProductInfo, error) {
 	var setCode string
 	releaseDate := strings.Split(strings.TrimSpace(doc.Find(".release strong").Text()), "(")[0]
 	titleAndWorkNumber := strings.TrimSpace(doc.Find(".release").Text())
 
-	titleAndWorkNumberArray := strings.Split(titleAndWorkNumber, "/ ")
-	licenceCode := strings.Split(titleAndWorkNumberArray[1], "：")[1]
+	matches := TITLE_AND_WORK_NUMBER_REGEXP.FindStringSubmatch(titleAndWorkNumber)
+	if matches == nil {
+		return ProductInfo{}, fmt.Errorf("String %q doesn't match expected format", titleAndWorkNumber)
+	}
+	licenceCode := matches[1]
 	doc.Find(".entry-content img").Each(func(i int, s *goquery.Selection) {
 		src, _ := s.Attr("src")
 		// Extract the filename from the path
@@ -79,15 +85,13 @@ func extractProductInfo(doc *goquery.Document) ProductInfo {
 		}
 	})
 
-	// Remove last char "】"
-	licenceCode = strings.Replace(licenceCode, "】", "", -1)
 	return ProductInfo{
 		ReleaseDate: releaseDate,
 		Title:       doc.Find(".entry-content > h3").Text(),
 		LicenceCode: licenceCode,
 		SetCode:     setCode,
 		Image:       doc.Find(".product-detail .alignright img").AttrOr("src", "notfound"),
-	}
+	}, nil
 }
 
 func fetchProduct(page string) {
@@ -103,7 +107,11 @@ func fetchProduct(page string) {
 		}
 		log.Println("Extract :", productDetail)
 		doc := getDocument(productDetail)
-		productList = append(productList, extractProductInfo(doc))
+		if productInfo, err := extractProductInfo(doc); err != nil {
+			log.Println("Error getting product info:", err)
+		} else {
+			productList = append(productList, productInfo)
+		}
 	})
 
 	res, errMarshal := json.Marshal(productList)
