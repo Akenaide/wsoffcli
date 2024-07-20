@@ -127,7 +127,11 @@ func TestExtractProductInfo(t *testing.T) {
 		t.Error("Error parsing HTML:", err)
 		return
 	}
-	product := extractProductInfo(doc)
+	product, err := extractProductInfo(doc)
+
+	if err != nil {
+		t.Error("Got unexpected error: ", err)
+	}
 
 	if product.ReleaseDate != "2023/10/27" {
 		t.Error("ReleaseDate not good. Found: ", product.ReleaseDate)
@@ -147,5 +151,76 @@ func TestExtractProductInfo(t *testing.T) {
 
 	if product.SetCode != "W109" {
 		t.Error("SetCode not good. Found: ", product.SetCode)
+	}
+}
+
+const productHTMLUnexpectedTitle = `
+<div class="entry-content">
+<h3>トライアルデッキ 富士見ファンタジア文庫 Vol.2</h3>
+<div class="product-detail">
+<!-- social-buttons -->
+<ul class="social-buttons">
+<li class="twitter"><iframe id="twitter-widget-1" scrolling="no" frameborder="0" allowtransparency="true" allowfullscreen="true" class="twitter-share-button twitter-share-button-rendered twitter-tweet-button" title="X Post Button" src="https://platform.twitter.com/widgets/tweet_button.2f70fb173b9000da126c79afe2098f02.ja.html#dnt=false&amp;hashtags=ws2tcg&amp;id=twitter-widget-1&amp;lang=ja&amp;original_referer=https%3A%2F%2Fws-tcg.com%2Fproducts%2Ff-td2%2F&amp;size=m&amp;text=%E3%83%88%E3%83%A9%E3%82%A4%E3%82%A2%E3%83%AB%E3%83%87%E3%83%83%E3%82%AD%20%E5%AF%8C%E5%A3%AB%E8%A6%8B%E3%83%95%E3%82%A1%E3%83%B3%E3%82%BF%E3%82%B8%E3%82%A2%E6%96%87%E5%BA%AB%20Vol.2%EF%BD%9C%E3%83%B4%E3%82%A1%E3%82%A4%E3%82%B9%E3%82%B7%E3%83%A5%E3%83%B4%E3%82%A1%E3%83%AB%E3%83%84%EF%BD%9CWei%CE%B2%20Schwarz&amp;time=1721622285925&amp;type=share&amp;url=https%3A%2F%2Fws-tcg.com%2Fproducts%2Ff-td2%2F" style="position: static; visibility: visible; width: 77px; height: 20px;" data-url="https://ws-tcg.com/products/f-td2/"></iframe>
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script></li>
+<li class="facebook"><div class="fb-like fb_iframe_widget" data-href="https://ws-tcg.com/products/f-td2/" data-send="false" data-layout="button_count" data-width="100" data-show-faces="true" fb-xfbml-state="rendered" fb-iframe-plugin-query="app_id=&amp;container_width=0&amp;href=https%3A%2F%2Fws-tcg.com%2Fproducts%2Ff-td2%2F&amp;layout=button_count&amp;locale=ja_JP&amp;sdk=joey&amp;send=false&amp;show_faces=true&amp;width=100"><span style="vertical-align: bottom; width: 130px; height: 28px;"><iframe name="f2f1fb507ca4c5188" width="100px" height="1000px" data-testid="fb:like Facebook Social Plugin" title="fb:like Facebook Social Plugin" frameborder="0" allowtransparency="true" allowfullscreen="true" scrolling="no" allow="encrypted-media" src="https://www.facebook.com/plugins/like.php?app_id=&amp;channel=https%3A%2F%2Fstaticxx.facebook.com%2Fx%2Fconnect%2Fxd_arbiter%2F%3Fversion%3D46%23cb%3Dfd9ad7880f4ecd05a%26domain%3Dws-tcg.com%26is_canvas%3Dfalse%26origin%3Dhttps%253A%252F%252Fws-tcg.com%252Ffa6738fd72072fd38%26relation%3Dparent.parent&amp;container_width=0&amp;href=https%3A%2F%2Fws-tcg.com%2Fproducts%2Ff-td2%2F&amp;layout=button_count&amp;locale=ja_JP&amp;sdk=joey&amp;send=false&amp;show_faces=true&amp;width=100" style="border: none; visibility: visible; width: 130px; height: 28px;" class=""></iframe></span></div></li>
+</ul>
+<!-- /social-buttons -->
+<div class="alignright">
+<img width="400" height="400" src="https://ws-tcg.com/wordpress/wp-content/uploads/TD_NOW-PRINTING.png" class="attachment-post-thumbnail size-post-thumbnail wp-post-image" alt="" srcset="https://ws-tcg.com/wordpress/wp-content/uploads/TD_NOW-PRINTING.png 400w, https://ws-tcg.com/wordpress/wp-content/uploads/TD_NOW-PRINTING-150x150.png 150w, https://ws-tcg.com/wordpress/wp-content/uploads/TD_NOW-PRINTING-300x300.png 300w" sizes="(max-width: 400px) 100vw, 400px"></div>
+<p class="release"><strong>2024/10/25(Fri) 発売</strong><br>
+【
+タイトル区分：富士見ファンタジア文庫/ 】
+</p>
+<div class="section">カード50枚入り構築済みデッキ<br>
+クイックマニュアル・デッキ解説書・プレイマット同梱<br>
+<br>
+1個<br>
+希望小売価格1,650円(税込)<br>
+<br>
+1ボックス 6個入り<br>
+希望小売価格9,900円(税込)</div>
+<div class="section">富士見ファンタジア文庫の人気ライトノベルが<br>
+ヴァイスシュヴァルツに再び参戦！！<br>
+買ってすぐに遊べるトライアルデッキ！<br>
+これからヴァイスシュヴァルツをはじめる方におすすめの商品です！<br>
+<br>
+<b>■箔押しサインカード情報（順不同）</b><br>
+【冴えない彼女の育てかた】<br>
+澤村・スペンサー・英梨々 役：大西沙織さん<br>
+<br>
+【デート・ア・ライブ】<br>
+五河琴里 役：竹達彩奈さん<br>
+<br>
+【ロクでなし魔術講師と禁忌教典】<br>
+ルミア＝ティンジェル 役：宮本侑芽さん<br>
+<br>
+<b>■収録作品一覧(順不同)</b><br>
+・VTuberなんだが配信切り忘れたら伝説になってた<br>
+・キミと僕の最後の戦場、あるいは世界が始まる聖戦<br>
+・スパイ教室<br>
+・スレイヤーズ	<br>
+・デート・ア・ライブ  	<br>
+・ハイスクールD×D<br>
+・フルメタル・パニック!<br>
+・ロクでなし魔術講師と禁忌教典 <br>
+・冴えない彼女の育てかた	<br>
+・生徒会の一存<br>
+・転生王女と天才令嬢の魔法革命<br>
+</div>
+<div class="section"></div>
+</div>
+
+</div>
+`
+
+func TestExtractProductInfoUnexpectedTitle(t *testing.T) {
+	reader := strings.NewReader(productHTMLUnexpectedTitle)
+	doc, err := goquery.NewDocumentFromReader(reader)
+	if err != nil {
+		t.Error("Error parsing HTML:", err)
+		return
+	}
+	if _, err := extractProductInfo(doc); err == nil {
+		t.Error("Didn't get expected error")
 	}
 }
