@@ -50,29 +50,33 @@ var triggersMap = map[string]string{
 	"choice":   "CHOICE",
 }
 
-func parseInt(st string) string {
-	res := strings.Split(st, "：")[1]
-	if strings.Contains(res, "-") {
-		res = "0"
+func processInt(st string) string {
+	if strings.Contains(st, "-") {
+		st = "0"
 	}
-	return res
+	return st
 }
 
 // ExtractData extract data to card
 func ExtractData(mainHTML *goquery.Selection) Card {
 	var imgPlaceHolder string
-	trigger := []string{}
-	sa := []string{}
 	ability := []string{}
 	complex := mainHTML.Find("h4 span").Last().Text()
 	defer func() {
 		if err := recover(); err != nil {
-			log.Printf("Panic for %v", complex)
+			log.Printf("Panic for %v. Error=%v", complex, err)
 		}
 	}()
-	set := strings.Split(complex, "/")[0]
-	side := strings.Split(complex, "/")[1][0]
-	setInfo := strings.Split(strings.Split(complex, "/")[1][1:], "-")
+	log.Println("Start card:", complex)
+	var set string
+	var setInfo []string
+	if strings.Contains(complex, "/") {
+		set = strings.Split(complex, "/")[0]
+		setInfo = strings.Split(strings.Split(complex, "/")[1][1:], "-")
+	} else {
+		// TODO: deal with "BSF2024-03 PR" and similar cards
+		log.Println("Can't get set info from:", complex)
+	}
 	setName := strings.TrimSpace(strings.Split(mainHTML.Find("h4").Text(), ") -")[1])
 	imageCardURL, _ := mainHTML.Find("a img").Attr("src")
 	abilityNode, _ := mainHTML.Find("span").Last().Html()
@@ -88,31 +92,55 @@ func ExtractData(mainHTML *goquery.Selection) Card {
 		ability = append(ability, re.ReplaceAllString(line, imgPlaceHolder))
 	}
 
-	infos := mainHTML.Find(".unit").Map(func(i int, s *goquery.Selection) string {
+	infos := make(map[string]string)
+	mainHTML.Find(".unit").Each(func(i int, s *goquery.Selection) {
+		txt := strings.TrimSpace(s.Text())
+		switch {
 		// Color
-		if s.Text() == "色：" {
+		case strings.HasPrefix(txt, "色："):
 			_, colorName := path.Split(s.Children().AttrOr("src", "yay"))
-			return strings.ToUpper(strings.Split(colorName, ".")[0])
-		}
-		// Card type
-		if strings.HasPrefix(s.Text(), "種類：") {
-			cType := strings.TrimSpace(strings.Split(s.Text(), "種類：")[1])
+			infos["color"] = strings.ToUpper(strings.Split(colorName, ".")[0])
+			// Card type
+		case strings.HasPrefix(txt, "種類："):
+			cType := strings.TrimSpace(strings.TrimPrefix(txt, "種類："))
 
 			switch cType {
 			case "イベント":
-				return "EV"
+				infos["type"] = "EV"
 			case "キャラ":
-				return "CH"
+				infos["type"] = "CH"
 			case "クライマックス":
-				return "CX"
+				infos["type"] = "CX"
 			}
-		}
-		// Soul
-		if strings.HasPrefix(s.Text(), "ソウル：") {
-			return strconv.Itoa(s.Children().Length())
-		}
-		// Trigger
-		if strings.HasPrefix(s.Text(), "トリガー：") {
+			// Cost
+		case strings.HasPrefix(txt, "コスト："):
+			cost := strings.TrimSpace(strings.TrimPrefix(txt, "コスト："))
+			infos["cost"] = cost
+			// Flavor text
+		case strings.HasPrefix(txt, "フレーバー："):
+			flvr := strings.TrimSpace(strings.TrimPrefix(txt, "フレーバー："))
+			infos["flavourText"] = flvr
+			// Level
+		case strings.HasPrefix(txt, "レベル："):
+			lvl := strings.TrimSpace(strings.TrimPrefix(txt, "レベル："))
+			infos["level"] = lvl
+			// Power
+		case strings.HasPrefix(txt, "パワー："):
+			pwr := strings.TrimSpace(strings.TrimPrefix(txt, "パワー："))
+			infos["power"] = pwr
+			// Rarity
+		case strings.HasPrefix(txt, "レアリティ："):
+			rarity := strings.TrimSpace(strings.TrimPrefix(txt, "レアリティ："))
+			infos["rarity"] = rarity
+			// Side
+		case strings.HasPrefix(txt, "サイド："):
+			_, side := path.Split(s.Children().AttrOr("src", "yay"))
+			infos["side"] = strings.ToUpper(strings.Split(side, ".")[0])
+			// Soul
+		case strings.HasPrefix(txt, "ソウル："):
+			infos["soul"] = strconv.Itoa(s.Children().Length())
+			// Trigger
+		case strings.HasPrefix(txt, "トリガー："):
 			var res bytes.Buffer
 			s.Children().Each(func(i int, ss *goquery.Selection) {
 				if i != 0 {
@@ -121,49 +149,50 @@ func ExtractData(mainHTML *goquery.Selection) Card {
 				_, trigger := path.Split(ss.AttrOr("src", "yay"))
 				res.WriteString(triggersMap[strings.Split(trigger, ".")[0]])
 			})
-			return strings.ToUpper(res.String())
-		}
-		// Trait
-		if strings.HasPrefix(s.Text(), "特徴：") {
+			infos["trigger"] = strings.ToUpper(strings.TrimSpace(res.String()))
+			// Trait
+		case strings.HasPrefix(txt, "特徴："):
 			var res bytes.Buffer
 			s.Children().Each(func(i int, ss *goquery.Selection) {
-				res.WriteString(ss.Text())
+				res.WriteString(strings.TrimSpace(ss.Text()))
 			})
 			if strings.Contains(res.String(), "-") {
-				return ""
+				infos["specialAttribute"] = ""
+			} else {
+				infos["specialAttribute"] = strings.TrimSpace(res.String())
 			}
-			return res.String()
+		default:
+			log.Println("Unknown:", txt)
 		}
-		return s.Text()
 	})
 
-	if infos[8] != "" {
-		trigger = strings.Split(infos[8], " ")
-	}
-
-	if infos[9] != "" {
-		sa = strings.Split(infos[9], "・")
-	}
 	card := Card{
-		JpName:        strings.TrimSpace(mainHTML.Find("h4 span").First().Text()),
-		Set:           set,
-		SetName:       setName,
-		Side:          string(side),
-		Release:       setInfo[0],
-		ID:            setInfo[1],
-		CardType:      infos[1],
-		Level:         parseInt(infos[2]),
-		Colour:        infos[3],
-		Power:         parseInt(infos[4]),
-		Soul:          infos[5],
-		Cost:          parseInt(infos[6]),
-		Rarity:        strings.Split(infos[7], "：")[1],
-		Trigger:       trigger,
-		SpecialAttrib: sa,
-		Ability:       ability,
-		Version:       CardModelVersion,
-		Cardcode:      complex,
-		ImageURL:      imageCardURL,
+		JpName:      strings.TrimSpace(mainHTML.Find("h4 span").First().Text()),
+		Set:         set,
+		SetName:     setName,
+		Side:        infos["side"],
+		CardType:    infos["type"],
+		Level:       processInt(infos["level"]),
+		FlavourText: infos["flavourText"],
+		Colour:      infos["color"],
+		Power:       processInt(infos["power"]),
+		Soul:        infos["soul"],
+		Cost:        processInt(infos["cost"]),
+		Rarity:      infos["rarity"],
+		Ability:     ability,
+		Version:     CardModelVersion,
+		Cardcode:    complex,
+		ImageURL:    imageCardURL,
+	}
+	if infos["specialAttribute"] != "" {
+		card.SpecialAttrib = strings.Split(infos["specialAttribute"], "・")
+	}
+	if infos["trigger"] != "" {
+		card.Trigger = strings.Split(infos["trigger"], " ")
+	}
+	if len(setInfo) > 1 {
+		card.Release = setInfo[0]
+		card.ID = setInfo[1]
 	}
 	return card
 }
