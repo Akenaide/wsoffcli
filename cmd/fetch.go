@@ -248,7 +248,7 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		furnitures := []*furniture{}
 
 		var wg sync.WaitGroup
-		respChannel := make(chan *http.Response)
+		respChannel := make(chan *http.Response, maxWorker)
 		writeChannel := make(chan *goquery.Selection)
 
 		biri.ProxyStart()
@@ -271,7 +271,6 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		}
 		// Default furniture
 		furni := furniture{
-			Jobs:   make(chan string),
 			Values: values,
 			Wg:     &wg,
 			Jar:    jar,
@@ -292,6 +291,7 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 				copyFurni.Jobs = make(chan string)
 				log.Println(furni, recentfurni)
 				furnitures = append(furnitures, &copyFurni)
+
 			}
 		} else {
 			furnitures = append(furnitures, &furni)
@@ -299,7 +299,9 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		}
 
 		for _, furni := range furnitures {
-			loopNum += furni.getLastPage()
+			lastPage := furni.getLastPage()
+			loopNum += lastPage
+			furni.Jobs = make(chan string, lastPage)
 		}
 
 		if iter == 0 {
