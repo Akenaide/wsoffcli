@@ -38,6 +38,34 @@ import (
 
 const maxWorker int = 5
 
+type siteConfig struct {
+	baseURL                  string
+	cardListURL              string
+	cardSearchURL            string
+	languageCode             string
+	nextButtonDistinguisher  string
+	resultTableDistinguisher string
+}
+
+var siteConfigs = map[string]siteConfig{
+	"EN": {
+		baseURL:                  "https://en.ws-tcg.com/",
+		cardListURL:              "https://en.ws-tcg.com/cardlist/list/",
+		cardSearchURL:            "https://en.ws-tcg.com/cardlist/cardsearch/exec",
+		languageCode:             "EN",
+		nextButtonDistinguisher:  "[rel=\"next\"]",
+		resultTableDistinguisher: "#searchResult-table tr",
+	},
+	"JP": {
+		baseURL:                  "https://ws-tcg.com/",
+		cardListURL:              "https://ws-tcg.com/cardlist/",
+		cardSearchURL:            "https://ws-tcg.com/cardlist/search",
+		languageCode:             "JP",
+		nextButtonDistinguisher:  ".pager .next",
+		resultTableDistinguisher: ".search-result-table tr",
+	},
+}
+
 type writerWorkerStruct struct {
 	mode       string
 	wg         *sync.WaitGroup
@@ -58,20 +86,20 @@ type furniture struct {
 	lastPage int
 }
 
-func (w *writerWorkerStruct) run() {
+func (w *writerWorkerStruct) run(config siteConfig) {
 	switch w.mode {
 	case "card":
-		go w.card()
-		go w.card()
+		go w.card(config)
+		go w.card(config)
 	case "booster":
-		go w.populateBooster()
+		go w.populateBooster(config)
 	}
 }
 
-func (w *writerWorkerStruct) populateBooster() {
+func (w *writerWorkerStruct) populateBooster(config siteConfig) {
 	for s := range w.writeChan {
-		newCard := ExtractData(s)
-		boosterCode := newCard.Side + newCard.Release
+		newCard := ExtractData(config, s)
+		boosterCode := newCard.Release
 		boosterObj := w.boosterMap[boosterCode]
 
 		boosterObj.cards = append(boosterObj.cards, newCard)
@@ -80,12 +108,14 @@ func (w *writerWorkerStruct) populateBooster() {
 	}
 }
 
-func (w *writerWorkerStruct) write() {
+func (w *writerWorkerStruct) write(config siteConfig) {
 	fmt.Println("Start write in mode: ", w.mode)
 	if w.mode == "booster" {
 		for k, v := range w.boosterMap {
 			log.Println("Found booster :", k)
-			filename := k + ".json"
+			dirName := filepath.Join("boosters", config.languageCode)
+			os.MkdirAll(dirName, 0o744)
+			filename := filepath.Join(dirName, k+".json")
 			updatedData, err := json.Marshal(v.cards)
 			if err != nil {
 				log.Println("Error marshal struct: ", k)
@@ -97,10 +127,10 @@ func (w *writerWorkerStruct) write() {
 	}
 }
 
-func (w *writerWorkerStruct) card() {
+func (w *writerWorkerStruct) card(config siteConfig) {
 	for s := range w.writeChan {
 
-		card := ExtractData(s)
+		card := ExtractData(config, s)
 
 		res, errMarshal := json.Marshal(card)
 		if errMarshal != nil {
@@ -109,8 +139,8 @@ func (w *writerWorkerStruct) card() {
 			continue
 		}
 		var buffer bytes.Buffer
-		cardName := fmt.Sprintf("%v-%v%v-%v.json", card.Set, card.Side, card.Release, card.ID)
-		dirName := filepath.Join(card.Set, fmt.Sprintf("%v%v", card.Side, card.Release))
+		cardName := fmt.Sprintf("%v-%v-%v.json", card.Set, card.Release, card.ID)
+		dirName := filepath.Join("cards", config.languageCode, card.Set, card.Release)
 		os.MkdirAll(dirName, 0o744)
 		out, err := os.Create(filepath.Join(dirName, cardName))
 		if err != nil {
@@ -129,6 +159,7 @@ func (w *writerWorkerStruct) card() {
 func responseWorker(
 	id int,
 	furni *furniture,
+	config siteConfig,
 	respChannel chan *http.Response,
 	writeChan chan *goquery.Selection,
 ) {
@@ -140,9 +171,10 @@ func responseWorker(
 			log.Println("goquery error: ", err, "for page: ", resp.Request.URL)
 			continue
 		}
-		resultTable := doc.Find(".search-result-table tr")
+		resultTable := doc.Find(config.resultTableDistinguisher)
 
 		if resultTable.Length() == 0 && resp.StatusCode == 200 {
+			fmt.Println("No cards on response page")
 		} else {
 			log.Println("Found cards !!", resp.Request.URL)
 			resultTable.Each(func(i int, s *goquery.Selection) {
@@ -178,8 +210,8 @@ func worker(id int, furni *furniture, respChannel chan *http.Response) {
 	log.Println("Nani", id)
 }
 
-func (f *furniture) getLastPage() int {
-	resp, err := http.PostForm(fmt.Sprintf("%v?page=%d", Baseurl, 1), f.Values)
+func (f *furniture) getLastPage(config siteConfig) int {
+	resp, err := http.PostForm(fmt.Sprintf("%v?page=%d", config.cardSearchURL, 1), f.Values)
 	if err != nil {
 		log.Fatal("Error on getting last page")
 	}
@@ -188,7 +220,7 @@ func (f *furniture) getLastPage() int {
 	if err != nil {
 		log.Fatal("Error on getting last page parse")
 	}
-	all := doc.Find(".pager .next")
+	all := doc.Find(config.nextButtonDistinguisher)
 
 	last, _ := strconv.Atoi(all.Prev().First().Text())
 	// default is 1, there no .pager .next if it's the only page
@@ -233,11 +265,20 @@ var fetchCmd = &cobra.Command{
 
 Use global switches to specify the set, by default it will fetch all sets.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		lang := viper.GetString("lang")
+		var config siteConfig
+		if c, ok := siteConfigs[lang]; !ok {
+			log.Fatalf("Unsupported language: %q\n", lang)
+		} else {
+			config = c
+			log.Printf("Fetching %s cards\n", lang)
+		}
+
 		iter := viper.GetInt("iter")
 		loopNum := 0
 		fmt.Println("fetch called")
 		fmt.Printf("Settings: %v\n", viper.AllSettings())
-		biri.Config.PingServer = "https://ws-tcg.com/"
+		biri.Config.PingServer = config.baseURL
 		biri.Config.TickMinuteDuration = 1
 		biri.Config.Timeout = 25
 		jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
@@ -248,7 +289,7 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		furnitures := []*furniture{}
 
 		var wg sync.WaitGroup
-		respChannel := make(chan *http.Response)
+		respChannel := make(chan *http.Response, maxWorker)
 		writeChannel := make(chan *goquery.Selection)
 
 		biri.ProxyStart()
@@ -271,14 +312,13 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		}
 		// Default furniture
 		furni := furniture{
-			Jobs:   make(chan string),
 			Values: values,
 			Wg:     &wg,
 			Jar:    jar,
 		}
 
 		if viper.GetBool("recent") {
-			resp, err := http.Get("https://ws-tcg.com/cardlist/")
+			resp, err := http.Get(config.cardListURL)
 			if err != nil {
 				log.Fatal("Error on get recent")
 			}
@@ -289,7 +329,6 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 			for _, recentfurni := range getRecentFurnitures(doc) {
 				copyFurni := furni
 				copyFurni.Values = recentfurni.Values
-				copyFurni.Jobs = make(chan string)
 				log.Println(furni, recentfurni)
 				furnitures = append(furnitures, &copyFurni)
 			}
@@ -299,7 +338,9 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		}
 
 		for _, furni := range furnitures {
-			loopNum += furni.getLastPage()
+			lastPage := furni.getLastPage(config)
+			loopNum += lastPage
+			furni.Jobs = make(chan string, lastPage)
 		}
 
 		if iter == 0 {
@@ -317,11 +358,11 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 			writeChan:  writeChannel,
 			boosterMap: make(map[string]booster),
 		}
-		writerWorker.run()
+		writerWorker.run(config)
 		for _, furni := range furnitures {
 			for i := 0; i < maxWorker; i++ {
 				go worker(i, furni, respChannel)
-				go responseWorker(i, furni, respChannel, writeChannel)
+				go responseWorker(i, furni, config, respChannel, writeChannel)
 			}
 			go func(furni *furniture, iter int) {
 				fmt.Println("furni.lastPage:", furni.lastPage)
@@ -329,14 +370,14 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 					for i := 0; i < iter; i++ {
 						// hotfix, more work needed to have a clean implementation
 						if furni.lastPage-i > 0 {
-							furni.Jobs <- fmt.Sprintf("%v?page=%d", Baseurl, furni.lastPage-i)
+							furni.Jobs <- fmt.Sprintf("%v?page=%d", config.cardSearchURL, furni.lastPage-i)
 						}
 					}
 				} else {
 					for i := 1; i <= iter; i++ {
 						// hotfix, more work needed to have a clean implementation
 						if i <= furni.lastPage {
-							furni.Jobs <- fmt.Sprintf("%v?page=%d", Baseurl, i)
+							furni.Jobs <- fmt.Sprintf("%v?page=%d", config.cardSearchURL, i)
 						}
 					}
 				}
@@ -348,7 +389,7 @@ Use global switches to specify the set, by default it will fetch all sets.`,
 		wg.Wait()
 		// close(jobs)
 		biri.Done()
-		writerWorker.write()
+		writerWorker.write(config)
 	},
 }
 
@@ -368,6 +409,7 @@ func init() {
 	fetchCmd.Flags().BoolP("reverse", "r", false, "Reverse order")
 	fetchCmd.Flags().BoolP("allrarity", "a", false, "get all rarity (sp, ssp, sbr, etc...)")
 	fetchCmd.Flags().StringP("export", "e", "card", "export value: card, booster, all")
+	fetchCmd.Flags().StringP("lang", "l", "JP", "Site language to pull from. Options are EN or JP. JP is default")
 	fetchCmd.Flags().BoolP("recent", "", false, "get all recent products")
 
 	viper.BindPFlag("page", fetchCmd.Flags().Lookup("page"))
@@ -375,5 +417,6 @@ func init() {
 	viper.BindPFlag("reverse", fetchCmd.Flags().Lookup("reverse"))
 	viper.BindPFlag("allrarity", fetchCmd.Flags().Lookup("allrarity"))
 	viper.BindPFlag("export", fetchCmd.Flags().Lookup("export"))
+	viper.BindPFlag("lang", fetchCmd.Flags().Lookup("lang"))
 	viper.BindPFlag("recent", fetchCmd.Flags().Lookup("recent"))
 }

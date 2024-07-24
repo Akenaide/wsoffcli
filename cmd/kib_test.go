@@ -23,7 +23,7 @@ func equalSlice(sliceA []string, sliceB []string) bool {
 	return true
 }
 
-func TestExtractData(t *testing.T) {
+func TestExtractData_jp(t *testing.T) {
 	chara := `
 	<th><a href="/cardlist/?cardno=BD/W63-036SPMa&amp;l"><img src="https://s3-ap-northeast-1.amazonaws.com/static.ws-tcg.com/wordpress/wp-content/cardimages/b/bd_w63/bd_w63_036spma.gif" alt="“私達、参上っ！”上原ひまり"/></a></th>
 	<td>
@@ -66,9 +66,12 @@ func TestExtractData(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	card := ExtractData(doc.Clone())
+	card := ExtractData(siteConfigs["JP"], doc.Clone())
 	if card.JpName != "“私達、参上っ！”上原ひまり" {
 		t.Errorf("got %v: expected “私達、参上っ！”上原ひまり", card.JpName)
+	}
+	if card.Name != "“私達、参上っ！”上原ひまり" {
+		t.Errorf("got %v: expected “私達、参上っ！”上原ひまり", card.Name)
 	}
 	if card.Set != "BD" {
 		t.Errorf("got %v: expected BD", card.Set)
@@ -76,8 +79,8 @@ func TestExtractData(t *testing.T) {
 	if card.Side != "W" {
 		t.Errorf("got %v: expected W", card.Side)
 	}
-	if card.Release != "63" {
-		t.Errorf("got %v: expected 63", card.Release)
+	if card.Release != "W63" {
+		t.Errorf("got %v: expected W63", card.Release)
 	}
 	if card.ID != "036SPMa" {
 		t.Errorf("got %v: expected 036SPMa", card.ID)
@@ -114,7 +117,7 @@ func TestExtractData(t *testing.T) {
 	}
 }
 
-func TestExtractDataEvent(t *testing.T) {
+func TestExtractDataEvent_jp(t *testing.T) {
 	chara := `
 	<th><a href="/cardlist/?cardno=BD/W63-022&amp;l"><img src="https://s3-ap-northeast-1.amazonaws.com/static.ws-tcg.com/wordpress/wp-content/cardimages/b/bd_w63/bd_w63_022.gif" alt="ミッシェルからの伝言"></a></th>
 	<td>
@@ -144,7 +147,11 @@ func TestExtractDataEvent(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	card := ExtractData(doc.Clone())
+	card := ExtractData(siteConfigs["JP"], doc.Clone())
+	if card.Name != "ミッシェルからの伝言" {
+		t.Errorf("got %v: expected ミッシェルからの伝言", card.Name)
+	}
+
 	if !equalSlice(card.Trigger, expectedTrigger) {
 		t.Errorf("got %v: expected %v", card.Trigger, expectedTrigger)
 	}
@@ -166,7 +173,7 @@ func TestExtractDataEvent(t *testing.T) {
 	}
 }
 
-func TestExtractDataCX(t *testing.T) {
+func TestExtractDataCX_jp(t *testing.T) {
 	chara := `
 	<th><a href="/cardlist/?cardno=BD/W63-025&amp;l"><img src="https://s3-ap-northeast-1.amazonaws.com/static.ws-tcg.com/wordpress/wp-content/cardimages/b/bd_w63/bd_w63_025.gif" alt="キラキラのお日様"></a></th>
 	<td>
@@ -194,10 +201,14 @@ func TestExtractDataCX(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	card := ExtractData(doc.Clone())
+	card := ExtractData(siteConfigs["JP"], doc.Clone())
 
 	if card.CardType != "CX" {
 		t.Errorf("got %v: expected CX", card.CardType)
+	}
+
+	if card.Name != "キラキラのお日様" {
+		t.Errorf("got %v: expected キラキラのお日様", card.Name)
 	}
 
 	if card.Soul != "0" {
@@ -210,6 +221,233 @@ func TestExtractDataCX(t *testing.T) {
 
 	if card.Cost != "0" {
 		t.Errorf("got %v: expected 0", card.Cost)
+	}
+
+	if strings.Contains(card.Ability[1], "img") {
+		t.Errorf("got img tag in %v", card.Ability)
+	}
+}
+
+func TestExtractData_en(t *testing.T) {
+	chara := `
+<th><a href="https://en.ws-tcg.com/cardlist/list/?cardno=FS/BCS2019-03"><img src="/wp/wp-content/images/cardimages/f/fs_s64/FS_BCS_2019_03.png" alt="EGOISTIC, Sakura"></a></th>
+<td>
+<h4>
+<a href="https://en.ws-tcg.com/cardlist/list/?cardno=FS/BCS2019-03"><span class="highlight_target">EGOISTIC, Sakura</span>(<span class="highlight_target">FS/BCS2019-03</span>)</a> - PR Card 【Schwarz Side】<br>
+</h4>
+<span class="unit">
+[Side]: <img src="/wp/wp-content/images/partimages/s.gif">
+</span>
+<span class="unit">[Card Type]: Character</span>
+<span class="unit">[Level]: 0</span><br>
+<span class="unit">[Color]: <img src="../partimages/green.gif"></span>
+<span class="unit">[Power]: 2000</span>
+<span class="unit">[Soul]: <img src="../partimages/soul.gif"></span>
+<span class="unit">[Cost]: 0</span><br>
+<span class="unit">[Rarity]: PR</span>
+<span class="unit">[Trigger]: -</span>
+<span class="unit">[Special Attribute]: <span class="highlight_target">Master・Love</span></span><br>
+
+<span class="unit">[Flavor Text]: <span>I wish someone like this didn't exist.</span></span><br>
+<br>
+<span class="highlight_target">【AUTO】 When this card is placed on the stage from your hand, choose 1 of your 《Master》 or 《Servant》 characters, and that character gets +1500 power until end of turn.</span>
+
+
+</td>
+`
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(chara))
+	expectedTrigger := []string{}
+	expectedTrait := []string{"Master", "Love"}
+	expectedAbility := []string{"【AUTO】 When this card is placed on the stage from your hand, choose 1 of your 《Master》 or 《Servant》 characters, and that character gets +1500 power until end of turn."}
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	card := ExtractData(siteConfigs["EN"], doc.Clone())
+	if card.JpName != "" {
+		t.Errorf("got %v: expected ''", card.JpName)
+	}
+	if card.Name != "EGOISTIC, Sakura" {
+		t.Errorf("got %v: expected EGOISTIC, Sakura", card.Name)
+	}
+	if card.Set != "FS" {
+		t.Errorf("got %v: expected FS", card.Set)
+	}
+	if card.Side != "S" {
+		t.Errorf("got %v: expected S", card.Side)
+	}
+	if card.Release != "BCS2019" {
+		t.Errorf("got %v: expected BCS2019", card.Release)
+	}
+	if card.ID != "03" {
+		t.Errorf("got %v: expected 03", card.ID)
+	}
+	if card.Level != "0" {
+		t.Errorf("got %v: expected 0", card.Level)
+	}
+	if card.Colour != "GREEN" {
+		t.Errorf("got %v: expected GREEN", card.Colour)
+	}
+	if card.Power != "2000" {
+		t.Errorf("got %v: expected 2000", card.Power)
+	}
+	if card.Soul != "1" {
+		t.Errorf("got %v: expected 1", card.Soul)
+	}
+	if card.Cost != "0" {
+		t.Errorf("got %v: expected 0", card.Cost)
+	}
+	if card.CardType != "CH" {
+		t.Errorf("got %v: expected CH", card.CardType)
+	}
+	if card.Rarity != "PR" {
+		t.Errorf("got %v: expected PR", card.Rarity)
+	}
+	if !equalSlice(card.Trigger, expectedTrigger) {
+		t.Errorf("got %v: expected %v", card.Trigger, expectedTrigger)
+	}
+	if !equalSlice(card.SpecialAttrib, expectedTrait) {
+		t.Errorf("got %v: expected %v", card.SpecialAttrib, expectedTrait)
+	}
+	if !equalSlice(card.Ability, expectedAbility) {
+		t.Errorf("got \n %v: expected \n %v", card.Ability, expectedAbility)
+	}
+}
+
+func TestExtractDataEvent_en(t *testing.T) {
+	event := `
+<th><a href="https://en.ws-tcg.com/cardlist/list/?cardno=SS/WE41-E17"><img src="/wp/wp-content/images/cardimages/SS/WE41_E17.png" alt="The Day Yuji Disappeared"></a></th>
+<td>
+<h4>
+<a href="https://en.ws-tcg.com/cardlist/list/?cardno=SS/WE41-E17" class=""><span class="highlight_target">The Day Yuji Disappeared</span>(<span class="highlight_target">SS/WE41-E17</span>)</a> - Shakugan no Shana<br>
+</h4>
+<span class="unit">
+[Side]: <img src="/wp/wp-content/images/partimages/w.gif">
+</span>
+<span class="unit">[Card Type]: Event</span>
+<span class="unit">[Level]: 2</span><br>
+<span class="unit">[Color]: <img src="../partimages/yellow.gif"></span>
+<span class="unit">[Power]: -</span>
+<span class="unit">[Soul]: -</span>
+<span class="unit">[Cost]: 1</span><br>
+<span class="unit">[Rarity]: N</span>
+<span class="unit">[Trigger]: －</span>
+<span class="unit">[Special Attribute]: <span class="highlight_target">-・-</span></span><br>
+
+<span class="unit">[Flavor Text]: <span>Yuji...</span></span><br>
+<br>
+<span class="highlight_target">Search your deck for up to 2 《Flame》 characters, reveal them to your opponent, put them into your hand, choose 1 card in your hand, put it into your waiting room, and shuffle your deck.<br>Put this card into your memory.<br></span>
+
+
+</td>
+	`
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(event))
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	card := ExtractData(siteConfigs["EN"], doc.Clone())
+
+	if card.CardType != "EV" {
+		t.Errorf("got %v: expected EV", card.CardType)
+	}
+
+	if card.Name != "The Day Yuji Disappeared" {
+		t.Errorf("got %v: expected The Day Yuji Disappeared", card.Name)
+	}
+
+	expectedTrigger := []string{}
+	if !equalSlice(card.Trigger, expectedTrigger) {
+		t.Errorf("got %v: expected %v", card.Trigger, expectedTrigger)
+	}
+
+	if !equalSlice(card.SpecialAttrib, []string{}) {
+		t.Errorf("got %v: expected empty", card.SpecialAttrib)
+	}
+
+	if card.Level != "2" {
+		t.Errorf("got %v: expected 2", card.Level)
+	}
+
+	if card.Colour != "YELLOW" {
+		t.Errorf("got %v: expected YELLOW", card.Colour)
+	}
+
+	if card.Soul != "0" {
+		t.Errorf("got %v: expected ''", card.Soul)
+	}
+
+	if card.Power != "0" {
+		t.Errorf("got %v: expected 0", card.Power)
+	}
+}
+
+func TestExtractDataCX_en(t *testing.T) {
+	climax := `
+<th><a href="https://en.ws-tcg.com/cardlist/list/?cardno=SS/WE41-E59SHP"><img src="/wp/wp-content/images/cardimages/SS/WE41_E59SHP.png" alt="Direct Confrontation!"></a></th>
+<td>
+<h4>
+<a href="https://en.ws-tcg.com/cardlist/list/?cardno=SS/WE41-E59SHP" class=""><span class="highlight_target">Direct Confrontation!</span>(<span class="highlight_target">SS/WE41-E59SHP</span>)</a> - Shakugan no Shana<br>
+</h4>
+<span class="unit">
+[Side]: <img src="/wp/wp-content/images/partimages/w.gif">
+</span>
+<span class="unit">[Card Type]: Climax</span>
+<span class="unit">[Level]: -</span><br>
+<span class="unit">[Color]: <img src="../partimages/blue.gif"></span>
+<span class="unit">[Power]: -</span>
+<span class="unit">[Soul]: -</span>
+<span class="unit">[Cost]: -</span><br>
+<span class="unit">[Rarity]: SHP</span>
+<span class="unit">[Trigger]: <img src="../partimages/soul.gif"><img src="../partimages/gate.gif"></span>
+<span class="unit">[Special Attribute]: <span class="highlight_target">-・-</span></span><br>
+
+<span class="unit">[Flavor Text]: <span>Flow inside, O energy.</span></span><br>
+<br>
+<span class="highlight_target">【CONT】 All of your characters get +1000 power and +1 soul.<br>(<img src="../partimages/gate.gif">: When this card triggers, you may choose 1 climax in your waiting room, and return it to your hand)<br></span>
+
+
+</td>
+	`
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(climax))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	card := ExtractData(siteConfigs["EN"], doc.Clone())
+
+	if card.CardType != "CX" {
+		t.Errorf("got %v: expected CX", card.CardType)
+	}
+
+	if card.Name != "Direct Confrontation!" {
+		t.Errorf("got %v: expected Direction Confrontation!", card.Name)
+	}
+
+	if card.Colour != "BLUE" {
+		t.Errorf("got %v: expected BLUE", card.Colour)
+	}
+
+	if card.Soul != "0" {
+		t.Errorf("got %v: expected ''", card.Soul)
+	}
+
+	if card.Level != "0" {
+		t.Errorf("got %v: expected 0", card.Level)
+	}
+
+	if card.Cost != "0" {
+		t.Errorf("got %v: expected 0", card.Cost)
+	}
+
+	expectedTrigger := []string{"SOUL", "GATE"}
+	if !equalSlice(card.Trigger, expectedTrigger) {
+		t.Errorf("got %v: expected %v", card.Trigger, expectedTrigger)
 	}
 
 	if strings.Contains(card.Ability[1], "img") {

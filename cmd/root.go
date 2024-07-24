@@ -30,9 +30,6 @@ var (
 	allRarity   bool
 )
 
-// Baseurl base url
-const Baseurl = "https://ws-tcg.com/cardlist/search"
-
 // Card info to export
 type Card struct {
 	Set               string   `json:"set"`
