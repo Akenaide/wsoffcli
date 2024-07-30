@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"net/url"
 	"path"
 	"regexp"
 	"strconv"
@@ -58,7 +59,7 @@ func processInt(st string) string {
 }
 
 // ExtractData extract data to card
-func ExtractData(mainHTML *goquery.Selection) Card {
+func ExtractData(config siteConfig, mainHTML *goquery.Selection) Card {
 	var imgPlaceHolder string
 	ability := []string{}
 	complex := mainHTML.Find("h4 span").Last().Text()
@@ -72,7 +73,7 @@ func ExtractData(mainHTML *goquery.Selection) Card {
 	var setInfo []string
 	if strings.Contains(complex, "/") {
 		set = strings.Split(complex, "/")[0]
-		setInfo = strings.Split(strings.Split(complex, "/")[1][1:], "-")
+		setInfo = strings.Split(strings.Split(complex, "/")[1], "-")
 	} else {
 		// TODO: deal with "BSF2024-03 PR" and similar cards
 		log.Println("Can't get set info from:", complex)
@@ -97,50 +98,50 @@ func ExtractData(mainHTML *goquery.Selection) Card {
 		txt := strings.TrimSpace(s.Text())
 		switch {
 		// Color
-		case strings.HasPrefix(txt, "色："):
+		case strings.HasPrefix(txt, "色：") || strings.HasPrefix(txt, "[Color]:"):
 			_, colorName := path.Split(s.Children().AttrOr("src", "yay"))
 			infos["color"] = strings.ToUpper(strings.Split(colorName, ".")[0])
 			// Card type
-		case strings.HasPrefix(txt, "種類："):
-			cType := strings.TrimSpace(strings.TrimPrefix(txt, "種類："))
+		case strings.HasPrefix(txt, "種類：") || strings.HasPrefix(txt, "[Card Type]:"):
+			cType := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(txt, "種類："), "[Card Type]:"))
 
 			switch cType {
-			case "イベント":
+			case "イベント", "Event":
 				infos["type"] = "EV"
-			case "キャラ":
+			case "キャラ", "Character":
 				infos["type"] = "CH"
-			case "クライマックス":
+			case "クライマックス", "Climax":
 				infos["type"] = "CX"
 			}
 			// Cost
-		case strings.HasPrefix(txt, "コスト："):
-			cost := strings.TrimSpace(strings.TrimPrefix(txt, "コスト："))
+		case strings.HasPrefix(txt, "コスト：") || strings.HasPrefix(txt, "[Cost]:"):
+			cost := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(txt, "コスト："), "[Cost]:"))
 			infos["cost"] = cost
 			// Flavor text
-		case strings.HasPrefix(txt, "フレーバー："):
-			flvr := strings.TrimSpace(strings.TrimPrefix(txt, "フレーバー："))
+		case strings.HasPrefix(txt, "フレーバー：") || strings.HasPrefix(txt, "[Flavor Text]:"):
+			flvr := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(txt, "フレーバー："), "[Flavor Text]:"))
 			infos["flavourText"] = flvr
 			// Level
-		case strings.HasPrefix(txt, "レベル："):
-			lvl := strings.TrimSpace(strings.TrimPrefix(txt, "レベル："))
+		case strings.HasPrefix(txt, "レベル：") || strings.HasPrefix(txt, "[Level]:"):
+			lvl := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(txt, "レベル："), "[Level]:"))
 			infos["level"] = lvl
 			// Power
-		case strings.HasPrefix(txt, "パワー："):
-			pwr := strings.TrimSpace(strings.TrimPrefix(txt, "パワー："))
+		case strings.HasPrefix(txt, "パワー：") || strings.HasPrefix(txt, "[Power]:"):
+			pwr := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(txt, "パワー："), "[Power]:"))
 			infos["power"] = pwr
 			// Rarity
-		case strings.HasPrefix(txt, "レアリティ："):
-			rarity := strings.TrimSpace(strings.TrimPrefix(txt, "レアリティ："))
+		case strings.HasPrefix(txt, "レアリティ：") || strings.HasPrefix(txt, "[Rarity]:"):
+			rarity := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(txt, "レアリティ："), "[Rarity]:"))
 			infos["rarity"] = rarity
 			// Side
-		case strings.HasPrefix(txt, "サイド："):
+		case strings.HasPrefix(txt, "サイド：") || strings.HasPrefix(txt, "[Side]:"):
 			_, side := path.Split(s.Children().AttrOr("src", "yay"))
 			infos["side"] = strings.ToUpper(strings.Split(side, ".")[0])
 			// Soul
-		case strings.HasPrefix(txt, "ソウル："):
+		case strings.HasPrefix(txt, "ソウル：") || strings.HasPrefix(txt, "[Soul]:"):
 			infos["soul"] = strconv.Itoa(s.Children().Length())
 			// Trigger
-		case strings.HasPrefix(txt, "トリガー："):
+		case strings.HasPrefix(txt, "トリガー：") || strings.HasPrefix(txt, "[Trigger]:"):
 			var res bytes.Buffer
 			s.Children().Each(func(i int, ss *goquery.Selection) {
 				if i != 0 {
@@ -151,7 +152,7 @@ func ExtractData(mainHTML *goquery.Selection) Card {
 			})
 			infos["trigger"] = strings.ToUpper(strings.TrimSpace(res.String()))
 			// Trait
-		case strings.HasPrefix(txt, "特徴："):
+		case strings.HasPrefix(txt, "特徴：") || strings.HasPrefix(txt, "[Special Attribute]:"):
 			var res bytes.Buffer
 			s.Children().Each(func(i int, ss *goquery.Selection) {
 				res.WriteString(strings.TrimSpace(ss.Text()))
@@ -167,7 +168,7 @@ func ExtractData(mainHTML *goquery.Selection) Card {
 	})
 
 	card := Card{
-		JpName:      strings.TrimSpace(mainHTML.Find("h4 span").First().Text()),
+		Name:        strings.TrimSpace(mainHTML.Find("h4 span").First().Text()),
 		Set:         set,
 		SetName:     setName,
 		Side:        infos["side"],
@@ -182,7 +183,12 @@ func ExtractData(mainHTML *goquery.Selection) Card {
 		Ability:     ability,
 		Version:     CardModelVersion,
 		Cardcode:    complex,
-		ImageURL:    imageCardURL,
+	}
+	if fullURL, err := url.JoinPath(config.baseURL, imageCardURL); err == nil {
+		card.ImageURL = fullURL
+	} else {
+		log.Printf("Couldn't form full image URL: %v\n", err)
+		card.ImageURL = imageCardURL
 	}
 	if infos["specialAttribute"] != "" {
 		card.SpecialAttrib = strings.Split(infos["specialAttribute"], "・")
@@ -193,6 +199,9 @@ func ExtractData(mainHTML *goquery.Selection) Card {
 	if len(setInfo) > 1 {
 		card.Release = setInfo[0]
 		card.ID = setInfo[1]
+	}
+	if config.languageCode == "JP" {
+		card.JpName = card.Name
 	}
 	return card
 }
