@@ -59,7 +59,7 @@ type Card struct {
 }
 
 // CardModelVersion : Card format version
-const CardModelVersion = "3"
+const CardModelVersion = "4"
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{

@@ -113,7 +113,7 @@ func (w *writerWorkerStruct) write(config siteConfig) {
 	if w.mode == "booster" {
 		for k, v := range w.boosterMap {
 			log.Println("Found booster :", k)
-			dirName := filepath.Join("boosters", config.languageCode)
+			dirName := filepath.Join(viper.GetString("boosterDir"), config.languageCode)
 			os.MkdirAll(dirName, 0o744)
 			filename := filepath.Join(dirName, k+".json")
 			updatedData, err := json.Marshal(v.cards)
@@ -140,7 +140,7 @@ func (w *writerWorkerStruct) card(config siteConfig) {
 		}
 		var buffer bytes.Buffer
 		cardName := fmt.Sprintf("%v-%v-%v.json", card.Set, card.Release, card.ID)
-		dirName := filepath.Join("cards", config.languageCode, card.Set, card.Release)
+		dirName := filepath.Join(viper.GetString("cardDir"), config.languageCode, card.Set, card.Release)
 		os.MkdirAll(dirName, 0o744)
 		out, err := os.Create(filepath.Join(dirName, cardName))
 		if err != nil {
@@ -405,6 +405,8 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// fetchCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	fetchCmd.Flags().StringP("boosterDir", "", "boosters", "Directory to put fetched booster information into")
+	fetchCmd.Flags().StringP("cardDir", "", "cards", "Directory to put fetched card information into")
 	fetchCmd.Flags().IntP("iter", "i", 0, "Number of iteration")
 	fetchCmd.Flags().BoolP("reverse", "r", false, "Reverse order")
 	fetchCmd.Flags().BoolP("allrarity", "a", false, "get all rarity (sp, ssp, sbr, etc...)")
@@ -412,6 +414,8 @@ func init() {
 	fetchCmd.Flags().StringP("lang", "l", "JP", "Site language to pull from. Options are EN or JP. JP is default")
 	fetchCmd.Flags().BoolP("recent", "", false, "get all recent products")
 
+	viper.BindPFlag("boosterDir", fetchCmd.Flags().Lookup("boosterDir"))
+	viper.BindPFlag("cardDir", fetchCmd.Flags().Lookup("cardDir"))
 	viper.BindPFlag("page", fetchCmd.Flags().Lookup("page"))
 	viper.BindPFlag("iter", fetchCmd.Flags().Lookup("iter"))
 	viper.BindPFlag("reverse", fetchCmd.Flags().Lookup("reverse"))
